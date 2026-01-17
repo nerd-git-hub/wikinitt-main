@@ -8,6 +8,7 @@ import { ArrowLeft } from "lucide-react";
 
 import { auth } from "@/auth";
 import { getGraphQLClient } from "@/lib/graphql";
+import CommunityLoginPrompt from "@/components/CommunityLoginPrompt";
 
 import { Metadata } from "next";
 
@@ -53,6 +54,11 @@ export default async function PostPage({
 }) {
   const { slug, postId } = await params;
   const session = await auth();
+
+  if (!session) {
+    return <CommunityLoginPrompt />;
+  }
+
   const post = await getPost(postId, session?.backendToken);
 
   if (!post) {

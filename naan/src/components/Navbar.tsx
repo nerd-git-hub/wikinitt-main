@@ -50,7 +50,7 @@ function UserMenu() {
         {},
         {
           Authorization: `Bearer ${session.backendToken}`,
-        }
+        },
       );
       return data.me;
     },
@@ -136,7 +136,7 @@ function UserMenu() {
 }
 
 export default function Navbar({ children }: { children: React.ReactNode }) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -286,7 +286,7 @@ export default function Navbar({ children }: { children: React.ReactNode }) {
       <aside
         className={cn(
           "fixed top-0 left-0 z-40 w-64 h-screen pt-20 transition-transform bg-white border-r border-gray-200",
-          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+          isSidebarOpen ? "translate-x-0" : "-translate-x-full",
         )}
         aria-label="Sidebar"
       >
@@ -304,7 +304,7 @@ export default function Navbar({ children }: { children: React.ReactNode }) {
                         "flex items-center p-2 rounded-lg group transition-colors",
                         isActive
                           ? "bg-blue-50 text-blue-600"
-                          : "text-gray-900 hover:bg-gray-100"
+                          : "text-gray-900 hover:bg-gray-100",
                       )}
                     >
                       <item.icon
@@ -312,7 +312,7 @@ export default function Navbar({ children }: { children: React.ReactNode }) {
                           "w-6 h-6 transition-colors",
                           isActive
                             ? "text-blue-600"
-                            : "text-gray-500 group-hover:text-gray-900"
+                            : "text-gray-500 group-hover:text-gray-900",
                         )}
                       />
                       <span className="ms-3 flex-1">{item.name}</span>
@@ -342,7 +342,7 @@ export default function Navbar({ children }: { children: React.ReactNode }) {
                         "flex items-center p-2 rounded-lg group transition-colors",
                         isActive
                           ? "bg-amber-50 text-amber-600"
-                          : "text-gray-900 hover:bg-gray-100"
+                          : "text-gray-900 hover:bg-gray-100",
                       )}
                     >
                       <item.icon
@@ -350,7 +350,7 @@ export default function Navbar({ children }: { children: React.ReactNode }) {
                           "w-6 h-6 transition-colors",
                           isActive
                             ? "text-amber-600"
-                            : "text-gray-500 group-hover:text-gray-900"
+                            : "text-gray-500 group-hover:text-gray-900",
                         )}
                       />
                       <span className="ms-3">{item.name}</span>
@@ -365,7 +365,7 @@ export default function Navbar({ children }: { children: React.ReactNode }) {
       <main
         className={cn(
           "p-4 transition-all duration-300 pt-20 min-h-screen bg-gray-50",
-          isSidebarOpen ? "md:ml-64" : "ml-0"
+          isSidebarOpen ? "md:ml-64" : "ml-0",
         )}
       >
         {children}

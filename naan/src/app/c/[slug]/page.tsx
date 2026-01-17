@@ -11,6 +11,7 @@ import { Users, Calendar, MessageSquare, Heart } from "lucide-react";
 
 import { auth } from "@/auth";
 import { getGraphQLClient } from "@/lib/graphql";
+import CommunityLoginPrompt from "@/components/CommunityLoginPrompt";
 import JoinGroupButton from "@/components/community/JoinGroupButton";
 import PostCard from "@/components/community/PostCard";
 
@@ -58,6 +59,11 @@ export default async function GroupPage({
 }) {
   const { slug } = await params;
   const session = await auth();
+
+  if (!session) {
+    return <CommunityLoginPrompt />;
+  }
+
   const group = await getGroup(slug, session?.backendToken);
 
   if (!group) {

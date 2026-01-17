@@ -2,28 +2,20 @@
 
 import Link from "next/link";
 import LogoIcon from "@/components/logo.svg";
-import { Github, Twitter, Linkedin, Instagram } from "lucide-react";
+import Github from "@/components/github.svg";
 
 export default function Footer() {
   return (
     <footer className="bg-white border-t border-gray-200">
       <div className="mx-auto max-w-7xl px-6 py-12 md:flex md:items-center md:justify-between lg:px-8">
         <div className="flex justify-center space-x-6 md:order-2">
-          <Link href="#" className="text-gray-400 hover:text-gray-500">
-            <span className="sr-only">GitHub</span>
+          <Link
+            href="https://github.com/pranava-mohan/wikinitt"
+            target="_blank"
+            className="text-gray-400 hover:text-gray-500 flex item-center gap-2"
+          >
+            GitHub
             <Github className="h-6 w-6" />
-          </Link>
-          <Link href="#" className="text-gray-400 hover:text-gray-500">
-            <span className="sr-only">Twitter</span>
-            <Twitter className="h-6 w-6" />
-          </Link>
-          <Link href="#" className="text-gray-400 hover:text-gray-500">
-            <span className="sr-only">LinkedIn</span>
-            <Linkedin className="h-6 w-6" />
-          </Link>
-          <Link href="#" className="text-gray-400 hover:text-gray-500">
-            <span className="sr-only">Instagram</span>
-            <Instagram className="h-6 w-6" />
           </Link>
         </div>
         <div className="mt-8 md:order-1 md:mt-0">

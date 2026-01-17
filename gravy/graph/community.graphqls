@@ -70,10 +70,11 @@ input NewComment {
 
 extend type Query {
   groups(limit: Int, offset: Int, ownerId: ID, type: GroupType): [Group!]!
-  group(slug: String!): Group
-  post(id: ID!): Post
-  comment(id: ID!): Comment
-  publicPosts(limit: Int, offset: Int): [Post!]!
+    @auth(requires: USER)
+  group(slug: String!): Group @auth(requires: USER)
+  post(id: ID!): Post @auth(requires: USER)
+  comment(id: ID!): Comment @auth(requires: USER)
+  publicPosts(limit: Int, offset: Int): [Post!]! @auth(requires: USER)
 }
 
 extend type Mutation {
