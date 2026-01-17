@@ -8,6 +8,8 @@ import (
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
+
+	"github.com/pranava-mohan/wikinitt/gravy/internal/search"
 )
 
 type Repository interface {
@@ -23,6 +25,9 @@ type Repository interface {
 
 	CreatePost(ctx context.Context, post *Post) error
 	GetPost(ctx context.Context, id string) (*Post, error)
+	GetPostsByIDs(ctx context.Context, ids []string) ([]*Post, error)
+	GetGroupsByIDs(ctx context.Context, ids []string) ([]*Group, error)
+	GetCommentsByIDs(ctx context.Context, ids []string) ([]*Comment, error)
 	ListPosts(ctx context.Context, groupID string, limit, offset int) ([]*Post, error)
 	ListPublicPosts(ctx context.Context, limit, offset int) ([]*Post, error)
 	ListPostsByAuthor(ctx context.Context, authorID string, limit, offset int) ([]*Post, error)
@@ -48,14 +53,25 @@ type Repository interface {
 
 	CreateMessage(ctx context.Context, message *Message) error
 	ListMessages(ctx context.Context, channelID string, limit, offset int) ([]*Message, error)
+
+	ListUnindexedGroups(ctx context.Context, limit int) ([]*Group, error)
+	MarkGroupIndexed(ctx context.Context, id string) error
+	ListUnindexedPosts(ctx context.Context, limit int) ([]*Post, error)
+	MarkPostIndexed(ctx context.Context, id string) error
+	ListUnindexedComments(ctx context.Context, limit int) ([]*Comment, error)
+	MarkCommentIndexed(ctx context.Context, id string) error
 }
 
 type repository struct {
-	db *mongo.Database
+	db           *mongo.Database
+	searchClient *search.Client
 }
 
-func NewRepository(db *mongo.Database) Repository {
-	return &repository{db: db}
+func NewRepository(db *mongo.Database, searchClient *search.Client) Repository {
+	return &repository{
+		db:           db,
+		searchClient: searchClient,
+	}
 }
 
 func (r *repository) CreateGroup(ctx context.Context, group *Group) error {
@@ -66,6 +82,24 @@ func (r *repository) CreateGroup(ctx context.Context, group *Group) error {
 	if oid, ok := res.InsertedID.(bson.ObjectID); ok {
 		group.ID = oid.Hex()
 	}
+
+	doc := map[string]interface{}{
+		"id":           group.ID,
+		"type":         "group",
+		"group_id":     group.ID,
+		"group_type":   string(group.Type),
+		"name":         group.Name,
+		"description":  group.Description,
+		"slug":         group.Slug,
+		"ownerId":      group.OwnerID,
+		"createdAt":    group.CreatedAt.Unix(),
+		"membersCount": group.MembersCount,
+	}
+	if err := r.searchClient.IndexGroup(ctx, doc); err == nil {
+		_, _ = r.db.Collection("groups").UpdateOne(ctx, bson.M{"_id": res.InsertedID}, bson.M{"$set": bson.M{"indexed": true}})
+		group.Indexed = true
+	}
+
 	return nil
 }
 
@@ -122,7 +156,26 @@ func (r *repository) JoinGroup(ctx context.Context, groupID, userID string) erro
 		"$addToSet": bson.M{"memberIds": userID},
 		"$inc":      bson.M{"membersCount": 1},
 	})
-	return err
+	if err != nil {
+		return err
+	}
+
+	if group, err := r.GetGroupByID(ctx, groupID); err == nil {
+		doc := map[string]interface{}{
+			"id":           group.ID,
+			"type":         "group",
+			"group_id":     group.ID,
+			"group_type":   string(group.Type),
+			"name":         group.Name,
+			"description":  group.Description,
+			"slug":         group.Slug,
+			"ownerId":      group.OwnerID,
+			"createdAt":    group.CreatedAt.Unix(),
+			"membersCount": group.MembersCount,
+		}
+		_ = r.searchClient.IndexGroup(ctx, doc)
+	}
+	return nil
 }
 
 func (r *repository) LeaveGroup(ctx context.Context, groupID, userID string) error {
@@ -135,7 +188,26 @@ func (r *repository) LeaveGroup(ctx context.Context, groupID, userID string) err
 		"$pull": bson.M{"memberIds": userID},
 		"$inc":  bson.M{"membersCount": -1},
 	})
-	return err
+	if err != nil {
+		return err
+	}
+
+	if group, err := r.GetGroupByID(ctx, groupID); err == nil {
+		doc := map[string]interface{}{
+			"id":           group.ID,
+			"type":         "group",
+			"group_id":     group.ID,
+			"group_type":   string(group.Type),
+			"name":         group.Name,
+			"description":  group.Description,
+			"slug":         group.Slug,
+			"ownerId":      group.OwnerID,
+			"createdAt":    group.CreatedAt.Unix(),
+			"membersCount": group.MembersCount,
+		}
+		_ = r.searchClient.IndexGroup(ctx, doc)
+	}
+	return nil
 }
 
 func (r *repository) IsMember(ctx context.Context, groupID, userID string) (bool, error) {
@@ -240,6 +312,25 @@ func (r *repository) CreatePost(ctx context.Context, post *Post) error {
 	if oid, ok := res.InsertedID.(bson.ObjectID); ok {
 		post.ID = oid.Hex()
 	}
+
+	group, err := r.GetGroupByID(ctx, post.GroupID)
+	if err == nil {
+		doc := map[string]interface{}{
+			"id":         post.ID,
+			"type":       "post",
+			"group_id":   post.GroupID,
+			"group_type": string(group.Type),
+			"title":      post.Title,
+			"content":    post.Content,
+			"authorId":   post.AuthorID,
+			"createdAt":  post.CreatedAt.Unix(),
+		}
+		if err := r.searchClient.IndexPost(ctx, doc); err == nil {
+			_, _ = r.db.Collection("posts").UpdateOne(ctx, bson.M{"_id": res.InsertedID}, bson.M{"$set": bson.M{"indexed": true}})
+			post.Indexed = true
+		}
+	}
+
 	return nil
 }
 
@@ -254,6 +345,128 @@ func (r *repository) GetPost(ctx context.Context, id string) (*Post, error) {
 		return nil, err
 	}
 	return &post, nil
+}
+
+func (r *repository) GetPostsByIDs(ctx context.Context, ids []string) ([]*Post, error) {
+	if len(ids) == 0 {
+		return []*Post{}, nil
+	}
+	var oids []bson.ObjectID
+	idMap := make(map[string]int)
+	for i, id := range ids {
+		if oid, err := bson.ObjectIDFromHex(id); err == nil {
+			oids = append(oids, oid)
+			idMap[id] = i
+		}
+	}
+
+	cursor, err := r.db.Collection("posts").Find(ctx, bson.M{"_id": bson.M{"$in": oids}})
+	if err != nil {
+		return nil, err
+	}
+	var posts []*Post
+	if err := cursor.All(ctx, &posts); err != nil {
+		return nil, err
+	}
+
+	orderedPosts := make([]*Post, len(ids))
+	for _, p := range posts {
+		if idx, ok := idMap[p.ID]; ok {
+			orderedPosts[idx] = p
+		}
+	}
+
+	var finalPosts []*Post
+	for _, p := range orderedPosts {
+		if p != nil {
+			finalPosts = append(finalPosts, p)
+		}
+	}
+	return finalPosts, nil
+}
+
+func (r *repository) GetGroupsByIDs(ctx context.Context, ids []string) ([]*Group, error) {
+	if len(ids) == 0 {
+		return []*Group{}, nil
+	}
+
+	var queryIDs []interface{}
+	idMap := make(map[string]int)
+
+	for i, id := range ids {
+		if oid, err := bson.ObjectIDFromHex(id); err == nil {
+			queryIDs = append(queryIDs, oid)
+			idMap[id] = i
+		} else {
+			queryIDs = append(queryIDs, id)
+			idMap[id] = i
+		}
+	}
+
+	cursor, err := r.db.Collection("groups").Find(ctx, bson.M{"_id": bson.M{"$in": queryIDs}})
+	if err != nil {
+		return nil, err
+	}
+	var groups []*Group
+	if err := cursor.All(ctx, &groups); err != nil {
+		return nil, err
+	}
+
+	// Reorder
+	ordered := make([]*Group, len(ids))
+	for _, g := range groups {
+		if idx, ok := idMap[g.ID]; ok {
+			ordered[idx] = g
+		}
+	}
+
+	var final []*Group
+	for _, g := range ordered {
+		if g != nil {
+			final = append(final, g)
+		}
+	}
+	return final, nil
+}
+
+func (r *repository) GetCommentsByIDs(ctx context.Context, ids []string) ([]*Comment, error) {
+	if len(ids) == 0 {
+		return []*Comment{}, nil
+	}
+
+	var queryIDs []interface{}
+	idMap := make(map[string]int)
+
+	for i, id := range ids {
+		if oid, err := bson.ObjectIDFromHex(id); err == nil {
+			queryIDs = append(queryIDs, oid)
+			idMap[id] = i
+		}
+	}
+
+	cursor, err := r.db.Collection("comments").Find(ctx, bson.M{"_id": bson.M{"$in": queryIDs}})
+	if err != nil {
+		return nil, err
+	}
+	var comments []*Comment
+	if err := cursor.All(ctx, &comments); err != nil {
+		return nil, err
+	}
+
+	ordered := make([]*Comment, len(ids))
+	for _, c := range comments {
+		if idx, ok := idMap[c.ID]; ok {
+			ordered[idx] = c
+		}
+	}
+
+	var final []*Comment
+	for _, c := range ordered {
+		if c != nil {
+			final = append(final, c)
+		}
+	}
+	return final, nil
 }
 
 func (r *repository) ListPosts(ctx context.Context, groupID string, limit, offset int) ([]*Post, error) {
@@ -346,6 +559,28 @@ func (r *repository) CreateComment(ctx context.Context, comment *Comment) error 
 		parentOid, err := bson.ObjectIDFromHex(*comment.ParentID)
 		if err == nil {
 			_, _ = r.db.Collection("comments").UpdateOne(ctx, bson.M{"_id": parentOid}, bson.M{"$inc": bson.M{"repliesCount": 1}})
+		}
+	}
+
+	post, err := r.GetPost(ctx, comment.PostID)
+	if err == nil {
+		group, err := r.GetGroupByID(ctx, post.GroupID)
+		if err == nil {
+			doc := map[string]interface{}{
+				"id":         comment.ID,
+				"type":       "comment",
+				"group_id":   post.GroupID,
+				"group_type": string(group.Type),
+				"content":    comment.Content,
+				"authorId":   comment.AuthorID,
+				"postId":     comment.PostID,
+				"parentId":   comment.ParentID,
+				"createdAt":  comment.CreatedAt.Unix(),
+			}
+			if err := r.searchClient.IndexComment(ctx, doc); err == nil {
+				_, _ = r.db.Collection("comments").UpdateOne(ctx, bson.M{"_id": res.InsertedID}, bson.M{"$set": bson.M{"indexed": true}})
+				comment.Indexed = true
+			}
 		}
 	}
 	return nil
@@ -725,4 +960,88 @@ func (r *repository) ListMessages(ctx context.Context, channelID string, limit, 
 		return nil, err
 	}
 	return messages, nil
+}
+
+func (r *repository) ListUnindexedGroups(ctx context.Context, limit int) ([]*Group, error) {
+	filter := bson.M{
+		"$or": []bson.M{
+			{"indexed": false},
+			{"indexed": bson.M{"$exists": false}},
+		},
+	}
+	opts := options.Find().SetLimit(int64(limit))
+	cursor, err := r.db.Collection("groups").Find(ctx, filter, opts)
+	if err != nil {
+		return nil, err
+	}
+	var groups []*Group
+	if err := cursor.All(ctx, &groups); err != nil {
+		return nil, err
+	}
+	return groups, nil
+}
+
+func (r *repository) MarkGroupIndexed(ctx context.Context, id string) error {
+	idObj, err := bson.ObjectIDFromHex(id)
+	if err != nil {
+		return err
+	}
+	_, err = r.db.Collection("groups").UpdateOne(ctx, bson.M{"_id": idObj}, bson.M{"$set": bson.M{"indexed": true}})
+	return err
+}
+
+func (r *repository) ListUnindexedPosts(ctx context.Context, limit int) ([]*Post, error) {
+	filter := bson.M{
+		"$or": []bson.M{
+			{"indexed": false},
+			{"indexed": bson.M{"$exists": false}},
+		},
+	}
+	opts := options.Find().SetLimit(int64(limit))
+	cursor, err := r.db.Collection("posts").Find(ctx, filter, opts)
+	if err != nil {
+		return nil, err
+	}
+	var posts []*Post
+	if err := cursor.All(ctx, &posts); err != nil {
+		return nil, err
+	}
+	return posts, nil
+}
+
+func (r *repository) MarkPostIndexed(ctx context.Context, id string) error {
+	idObj, err := bson.ObjectIDFromHex(id)
+	if err != nil {
+		return err
+	}
+	_, err = r.db.Collection("posts").UpdateOne(ctx, bson.M{"_id": idObj}, bson.M{"$set": bson.M{"indexed": true}})
+	return err
+}
+
+func (r *repository) ListUnindexedComments(ctx context.Context, limit int) ([]*Comment, error) {
+	filter := bson.M{
+		"$or": []bson.M{
+			{"indexed": false},
+			{"indexed": bson.M{"$exists": false}},
+		},
+	}
+	opts := options.Find().SetLimit(int64(limit))
+	cursor, err := r.db.Collection("comments").Find(ctx, filter, opts)
+	if err != nil {
+		return nil, err
+	}
+	var comments []*Comment
+	if err := cursor.All(ctx, &comments); err != nil {
+		return nil, err
+	}
+	return comments, nil
+}
+
+func (r *repository) MarkCommentIndexed(ctx context.Context, id string) error {
+	idObj, err := bson.ObjectIDFromHex(id)
+	if err != nil {
+		return err
+	}
+	_, err = r.db.Collection("comments").UpdateOne(ctx, bson.M{"_id": idObj}, bson.M{"$set": bson.M{"indexed": true}})
+	return err
 }

@@ -13,6 +13,7 @@ import FormattedDate from "@/components/FormattedDate";
 import { formatDistanceToNow } from "date-fns";
 import { VoteType, Post } from "@/gql/graphql";
 import CommentSection from "./CommentSection";
+import { useState, useEffect } from "react";
 
 const Markdown = dynamic(
   () => import("@uiw/react-md-editor").then((mod) => mod.default.Markdown),
@@ -31,6 +32,14 @@ export default function PostView({
   const router = useRouter();
   const { data: session } = useSession();
 
+  const [userVote, setUserVote] = useState(post.userVote);
+  const [voteCount, setVoteCount] = useState(post.upvotes - post.downvotes);
+
+  useEffect(() => {
+    setUserVote(post.userVote);
+    setVoteCount(post.upvotes - post.downvotes);
+  }, [post.userVote, post.upvotes, post.downvotes]);
+
   const voteMutation = useMutation({
     mutationFn: async (type: VoteType) => {
       const client = getGraphQLClient(session?.backendToken);
@@ -42,15 +51,36 @@ export default function PostView({
     onSuccess: () => {
       router.refresh();
     },
+    onError: () => {
+      setUserVote(post.userVote);
+      setVoteCount(post.upvotes - post.downvotes);
+    },
   });
 
   const handleVote = (type: VoteType) => {
     if (!session) return;
-    const currentVote = post.userVote;
+
+    const currentVote = userVote;
     let newVote = type;
+    let newVoteCount = voteCount;
+
     if (currentVote === type) {
       newVote = VoteType.None;
+      if (type === VoteType.Up) newVoteCount--;
+      else newVoteCount++;
+    } else {
+      // Changing vote
+      if (currentVote === VoteType.Up) newVoteCount--;
+      else if (currentVote === VoteType.Down) newVoteCount++;
+
+      // Apply new vote
+      newVote = type;
+      if (newVote === VoteType.Up) newVoteCount++;
+      else newVoteCount--;
     }
+
+    setUserVote(newVote);
+    setVoteCount(newVoteCount);
     voteMutation.mutate(newVote);
   };
 
@@ -120,22 +150,16 @@ export default function PostView({
               <button
                 onClick={() => handleVote(VoteType.Up)}
                 className={`p-1 rounded hover:bg-gray-200 ${
-                  post.userVote === VoteType.Up
-                    ? "text-orange-500"
-                    : "text-gray-500"
+                  userVote === VoteType.Up ? "text-orange-500" : "text-gray-500"
                 }`}
               >
                 <ArrowBigUp className="w-6 h-6" />
               </button>
-              <span className="font-bold text-gray-700">
-                {post.upvotes - post.downvotes}
-              </span>
+              <span className="font-bold text-gray-700">{voteCount}</span>
               <button
                 onClick={() => handleVote(VoteType.Down)}
                 className={`p-1 rounded hover:bg-gray-200 ${
-                  post.userVote === VoteType.Down
-                    ? "text-blue-500"
-                    : "text-gray-500"
+                  userVote === VoteType.Down ? "text-blue-500" : "text-gray-500"
                 }`}
               >
                 <ArrowBigDown className="w-6 h-6" />

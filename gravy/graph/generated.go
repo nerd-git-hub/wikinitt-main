@@ -180,22 +180,25 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
-		Article       func(childComplexity int, id string) int
-		ArticleBySlug func(childComplexity int, slug string) int
-		Articles      func(childComplexity int, category *string, limit *int32, offset *int32, featured *bool) int
-		Categories    func(childComplexity int) int
-		Channel       func(childComplexity int, id string) int
-		CheckUsername func(childComplexity int, username string) int
-		Comment       func(childComplexity int, id string) int
-		Discussion    func(childComplexity int, groupID string) int
-		Group         func(childComplexity int, slug string) int
-		Groups        func(childComplexity int, limit *int32, offset *int32, ownerID *string, typeArg *model.GroupType) int
-		Me            func(childComplexity int) int
-		Ping          func(childComplexity int) int
-		Post          func(childComplexity int, id string) int
-		PublicPosts   func(childComplexity int, limit *int32, offset *int32) int
-		User          func(childComplexity int, username string) int
-		Users         func(childComplexity int) int
+		Article         func(childComplexity int, id string) int
+		ArticleBySlug   func(childComplexity int, slug string) int
+		Articles        func(childComplexity int, category *string, limit *int32, offset *int32, featured *bool) int
+		Categories      func(childComplexity int) int
+		Channel         func(childComplexity int, id string) int
+		CheckUsername   func(childComplexity int, username string) int
+		Comment         func(childComplexity int, id string) int
+		Discussion      func(childComplexity int, groupID string) int
+		Group           func(childComplexity int, slug string) int
+		Groups          func(childComplexity int, limit *int32, offset *int32, ownerID *string, typeArg *model.GroupType) int
+		Me              func(childComplexity int) int
+		Ping            func(childComplexity int) int
+		Post            func(childComplexity int, id string) int
+		PublicPosts     func(childComplexity int, limit *int32, offset *int32) int
+		SearchArticles  func(childComplexity int, query string, limit *int32, offset *int32) int
+		SearchCommunity func(childComplexity int, query string, limit *int32, offset *int32) int
+		SearchPosts     func(childComplexity int, query string, limit *int32, offset *int32) int
+		User            func(childComplexity int, username string) int
+		Users           func(childComplexity int) int
 	}
 
 	Subscription struct {
@@ -282,6 +285,9 @@ type QueryResolver interface {
 	PublicPosts(ctx context.Context, limit *int32, offset *int32) ([]*model.Post, error)
 	Discussion(ctx context.Context, groupID string) (*model.Discussion, error)
 	Channel(ctx context.Context, id string) (*model.Channel, error)
+	SearchArticles(ctx context.Context, query string, limit *int32, offset *int32) ([]*model.Article, error)
+	SearchPosts(ctx context.Context, query string, limit *int32, offset *int32) ([]*model.Post, error)
+	SearchCommunity(ctx context.Context, query string, limit *int32, offset *int32) ([]model.CommunityResult, error)
 	Users(ctx context.Context) ([]*model.User, error)
 	CheckUsername(ctx context.Context, username string) (bool, error)
 	Me(ctx context.Context) (*model.User, error)
@@ -1173,6 +1179,39 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.PublicPosts(childComplexity, args["limit"].(*int32), args["offset"].(*int32)), true
+	case "Query.searchArticles":
+		if e.complexity.Query.SearchArticles == nil {
+			break
+		}
+
+		args, err := ec.field_Query_searchArticles_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.SearchArticles(childComplexity, args["query"].(string), args["limit"].(*int32), args["offset"].(*int32)), true
+	case "Query.searchCommunity":
+		if e.complexity.Query.SearchCommunity == nil {
+			break
+		}
+
+		args, err := ec.field_Query_searchCommunity_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.SearchCommunity(childComplexity, args["query"].(string), args["limit"].(*int32), args["offset"].(*int32)), true
+	case "Query.searchPosts":
+		if e.complexity.Query.SearchPosts == nil {
+			break
+		}
+
+		args, err := ec.field_Query_searchPosts_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.SearchPosts(childComplexity, args["query"].(string), args["limit"].(*int32), args["offset"].(*int32)), true
 	case "Query.user":
 		if e.complexity.Query.User == nil {
 			break
@@ -1408,7 +1447,7 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 	return introspection.WrapTypeFromDef(ec.Schema(), ec.Schema().Types[name]), nil
 }
 
-//go:embed "article.graphqls" "category.graphqls" "community.graphqls" "discussion.graphqls" "schema.graphqls" "user.graphqls"
+//go:embed "article.graphqls" "category.graphqls" "community.graphqls" "discussion.graphqls" "schema.graphqls" "search.graphqls" "user.graphqls"
 var sourcesFS embed.FS
 
 func sourceData(filename string) string {
@@ -1425,6 +1464,7 @@ var sources = []*ast.Source{
 	{Name: "community.graphqls", Input: sourceData("community.graphqls"), BuiltIn: false},
 	{Name: "discussion.graphqls", Input: sourceData("discussion.graphqls"), BuiltIn: false},
 	{Name: "schema.graphqls", Input: sourceData("schema.graphqls"), BuiltIn: false},
+	{Name: "search.graphqls", Input: sourceData("search.graphqls"), BuiltIn: false},
 	{Name: "user.graphqls", Input: sourceData("user.graphqls"), BuiltIn: false},
 }
 var parsedSchema = gqlparser.MustLoadSchema(sources...)
@@ -1978,6 +2018,69 @@ func (ec *executionContext) field_Query_publicPosts_args(ctx context.Context, ra
 		return nil, err
 	}
 	args["offset"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_searchArticles_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "query", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["query"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "limit", ec.unmarshalOInt2ᚖint32)
+	if err != nil {
+		return nil, err
+	}
+	args["limit"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "offset", ec.unmarshalOInt2ᚖint32)
+	if err != nil {
+		return nil, err
+	}
+	args["offset"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_searchCommunity_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "query", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["query"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "limit", ec.unmarshalOInt2ᚖint32)
+	if err != nil {
+		return nil, err
+	}
+	args["limit"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "offset", ec.unmarshalOInt2ᚖint32)
+	if err != nil {
+		return nil, err
+	}
+	args["offset"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_searchPosts_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "query", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["query"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "limit", ec.unmarshalOInt2ᚖint32)
+	if err != nil {
+		return nil, err
+	}
+	args["limit"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "offset", ec.unmarshalOInt2ᚖint32)
+	if err != nil {
+		return nil, err
+	}
+	args["offset"] = arg2
 	return args, nil
 }
 
@@ -6929,6 +7032,177 @@ func (ec *executionContext) fieldContext_Query_channel(ctx context.Context, fiel
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_searchArticles(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_searchArticles,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().SearchArticles(ctx, fc.Args["query"].(string), fc.Args["limit"].(*int32), fc.Args["offset"].(*int32))
+		},
+		nil,
+		ec.marshalNArticle2ᚕᚖgithubᚗcomᚋpranavaᚑmohanᚋwikinittᚋgravyᚋgraphᚋmodelᚐArticleᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_searchArticles(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Article_id(ctx, field)
+			case "title":
+				return ec.fieldContext_Article_title(ctx, field)
+			case "content":
+				return ec.fieldContext_Article_content(ctx, field)
+			case "slug":
+				return ec.fieldContext_Article_slug(ctx, field)
+			case "category":
+				return ec.fieldContext_Article_category(ctx, field)
+			case "thumbnail":
+				return ec.fieldContext_Article_thumbnail(ctx, field)
+			case "featured":
+				return ec.fieldContext_Article_featured(ctx, field)
+			case "description":
+				return ec.fieldContext_Article_description(ctx, field)
+			case "author":
+				return ec.fieldContext_Article_author(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Article_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Article_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Article", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_searchArticles_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_searchPosts(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_searchPosts,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().SearchPosts(ctx, fc.Args["query"].(string), fc.Args["limit"].(*int32), fc.Args["offset"].(*int32))
+		},
+		nil,
+		ec.marshalNPost2ᚕᚖgithubᚗcomᚋpranavaᚑmohanᚋwikinittᚋgravyᚋgraphᚋmodelᚐPostᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_searchPosts(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Post_id(ctx, field)
+			case "title":
+				return ec.fieldContext_Post_title(ctx, field)
+			case "content":
+				return ec.fieldContext_Post_content(ctx, field)
+			case "author":
+				return ec.fieldContext_Post_author(ctx, field)
+			case "group":
+				return ec.fieldContext_Post_group(ctx, field)
+			case "commentsCount":
+				return ec.fieldContext_Post_commentsCount(ctx, field)
+			case "upvotes":
+				return ec.fieldContext_Post_upvotes(ctx, field)
+			case "downvotes":
+				return ec.fieldContext_Post_downvotes(ctx, field)
+			case "userVote":
+				return ec.fieldContext_Post_userVote(ctx, field)
+			case "comments":
+				return ec.fieldContext_Post_comments(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Post_createdAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Post", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_searchPosts_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_searchCommunity(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_searchCommunity,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().SearchCommunity(ctx, fc.Args["query"].(string), fc.Args["limit"].(*int32), fc.Args["offset"].(*int32))
+		},
+		nil,
+		ec.marshalNCommunityResult2ᚕgithubᚗcomᚋpranavaᚑmohanᚋwikinittᚋgravyᚋgraphᚋmodelᚐCommunityResultᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_searchCommunity(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type CommunityResult does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_searchCommunity_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_users(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -9622,6 +9896,40 @@ func (ec *executionContext) unmarshalInputUpdateUserInput(ctx context.Context, o
 
 // region    ************************** interface.gotpl ***************************
 
+func (ec *executionContext) _CommunityResult(ctx context.Context, sel ast.SelectionSet, obj model.CommunityResult) graphql.Marshaler {
+	switch obj := (obj).(type) {
+	case nil:
+		return graphql.Null
+	case model.Post:
+		return ec._Post(ctx, sel, &obj)
+	case *model.Post:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._Post(ctx, sel, obj)
+	case model.Group:
+		return ec._Group(ctx, sel, &obj)
+	case *model.Group:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._Group(ctx, sel, obj)
+	case model.Comment:
+		return ec._Comment(ctx, sel, &obj)
+	case *model.Comment:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._Comment(ctx, sel, obj)
+	default:
+		if typedObj, ok := obj.(graphql.Marshaler); ok {
+			return typedObj
+		} else {
+			panic(fmt.Errorf("unexpected type %T; non-generated variants of CommunityResult must implement graphql.Marshaler", obj))
+		}
+	}
+}
+
 // endregion ************************** interface.gotpl ***************************
 
 // region    **************************** object.gotpl ****************************
@@ -9859,7 +10167,7 @@ func (ec *executionContext) _Channel(ctx context.Context, sel ast.SelectionSet, 
 	return out
 }
 
-var commentImplementors = []string{"Comment"}
+var commentImplementors = []string{"Comment", "CommunityResult"}
 
 func (ec *executionContext) _Comment(ctx context.Context, sel ast.SelectionSet, obj *model.Comment) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, commentImplementors)
@@ -10087,7 +10395,7 @@ func (ec *executionContext) _Discussion(ctx context.Context, sel ast.SelectionSe
 	return out
 }
 
-var groupImplementors = []string{"Group"}
+var groupImplementors = []string{"Group", "CommunityResult"}
 
 func (ec *executionContext) _Group(ctx context.Context, sel ast.SelectionSet, obj *model.Group) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, groupImplementors)
@@ -10506,7 +10814,7 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 	return out
 }
 
-var postImplementors = []string{"Post"}
+var postImplementors = []string{"Post", "CommunityResult"}
 
 func (ec *executionContext) _Post(ctx context.Context, sel ast.SelectionSet, obj *model.Post) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, postImplementors)
@@ -11082,6 +11390,72 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_channel(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "searchArticles":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_searchArticles(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "searchPosts":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_searchPosts(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "searchCommunity":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_searchCommunity(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
 				return res
 			}
 
@@ -11915,6 +12289,60 @@ func (ec *executionContext) marshalNComment2ᚖgithubᚗcomᚋpranavaᚑmohanᚋ
 		return graphql.Null
 	}
 	return ec._Comment(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNCommunityResult2githubᚗcomᚋpranavaᚑmohanᚋwikinittᚋgravyᚋgraphᚋmodelᚐCommunityResult(ctx context.Context, sel ast.SelectionSet, v model.CommunityResult) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._CommunityResult(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNCommunityResult2ᚕgithubᚗcomᚋpranavaᚑmohanᚋwikinittᚋgravyᚋgraphᚋmodelᚐCommunityResultᚄ(ctx context.Context, sel ast.SelectionSet, v []model.CommunityResult) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNCommunityResult2githubᚗcomᚋpranavaᚑmohanᚋwikinittᚋgravyᚋgraphᚋmodelᚐCommunityResult(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
 }
 
 func (ec *executionContext) unmarshalNCompleteSetupInput2githubᚗcomᚋpranavaᚑmohanᚋwikinittᚋgravyᚋgraphᚋmodelᚐCompleteSetupInput(ctx context.Context, v any) (model.CompleteSetupInput, error) {

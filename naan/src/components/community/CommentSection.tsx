@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   ArrowBigUp,
   ArrowBigDown,
@@ -29,7 +29,7 @@ import { request } from "graphql-request";
 import Editor from "@/components/Editor";
 const Markdown = dynamic(
   () => import("@uiw/react-md-editor").then((mod) => mod.default.Markdown),
-  { ssr: false }
+  { ssr: false },
 );
 
 interface CommentData {
@@ -55,7 +55,6 @@ interface CommentSectionProps {
 }
 
 const REPLIES_PAGE_SIZE = 5;
-
 
 function ReplyLoader({
   commentId,
@@ -96,7 +95,7 @@ function ReplyLoader({
       if (lastPage.length < REPLIES_PAGE_SIZE) return undefined;
       return allPages.length * REPLIES_PAGE_SIZE;
     },
-    enabled: isExpanded, 
+    enabled: isExpanded,
   });
 
   const allReplies = data?.pages.flatMap((page) => page) || [];
@@ -180,6 +179,16 @@ function CommentItem({
   const [isReplying, setIsReplying] = useState(false);
   const [replyContent, setReplyContent] = useState("");
 
+  const [userVote, setUserVote] = useState(comment.userVote);
+  const [voteCount, setVoteCount] = useState(
+    comment.upvotes - comment.downvotes,
+  );
+
+  useEffect(() => {
+    setUserVote(comment.userVote);
+    setVoteCount(comment.upvotes - comment.downvotes);
+  }, [comment.userVote, comment.upvotes, comment.downvotes]);
+
   const voteMutation = useMutation({
     mutationFn: async (type: VoteType) => {
       const client = getGraphQLClient(session?.backendToken);
@@ -190,6 +199,11 @@ function CommentItem({
     },
     onSuccess: () => {
       router.refresh();
+    },
+    onError: () => {
+      // Revert on error
+      setUserVote(comment.userVote);
+      setVoteCount(comment.upvotes - comment.downvotes);
     },
   });
 
@@ -207,7 +221,7 @@ function CommentItem({
     onSuccess: () => {
       setReplyContent("");
       setIsReplying(false);
-      
+
       queryClient.invalidateQueries({ queryKey: ["replies"] });
       router.refresh();
     },
@@ -216,11 +230,26 @@ function CommentItem({
   const handleVote = (e: React.MouseEvent, type: VoteType) => {
     e.preventDefault();
     if (!session) return;
-    const currentVote = comment.userVote;
+
+    const currentVote = userVote;
     let newVote = type;
+    let newVoteCount = voteCount;
+
     if (currentVote === type) {
       newVote = VoteType.None;
+      if (type === VoteType.Up) newVoteCount--;
+      else newVoteCount++;
+    } else {
+      if (currentVote === VoteType.Up) newVoteCount--;
+      else if (currentVote === VoteType.Down) newVoteCount++;
+
+      newVote = type;
+      if (newVote === VoteType.Up) newVoteCount++;
+      else newVoteCount--;
     }
+
+    setUserVote(newVote);
+    setVoteCount(newVoteCount);
     voteMutation.mutate(newVote);
   };
 
@@ -229,9 +258,6 @@ function CommentItem({
     replyMutation.mutate();
   };
 
-  const voteScore = comment.upvotes - comment.downvotes;
-
-  
   const maxDepth = 4;
   const atMaxDepth = depth >= maxDepth;
 
@@ -290,7 +316,7 @@ function CommentItem({
             <button
               onClick={(e) => handleVote(e, VoteType.Up)}
               className={`p-0.5 rounded hover:bg-gray-200 transition-colors ${
-                comment.userVote === VoteType.Up ? "text-orange-500" : ""
+                userVote === VoteType.Up ? "text-orange-500" : ""
               }`}
               disabled={!session}
             >
@@ -298,19 +324,19 @@ function CommentItem({
             </button>
             <span
               className={`min-w-[20px] text-center ${
-                voteScore > 0
+                voteCount > 0
                   ? "text-orange-500"
-                  : voteScore < 0
-                  ? "text-blue-500"
-                  : ""
+                  : voteCount < 0
+                    ? "text-blue-500"
+                    : ""
               }`}
             >
-              {voteScore}
+              {voteCount}
             </span>
             <button
               onClick={(e) => handleVote(e, VoteType.Down)}
               className={`p-0.5 rounded hover:bg-gray-200 transition-colors ${
-                comment.userVote === VoteType.Down ? "text-blue-500" : ""
+                userVote === VoteType.Down ? "text-blue-500" : ""
               }`}
               disabled={!session}
             >

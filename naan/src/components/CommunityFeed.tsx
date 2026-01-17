@@ -12,17 +12,19 @@ import { MessageSquare, ArrowBigUp, ArrowBigDown } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 import { useRouter } from "next/navigation";
+import { getGraphQLClient } from "@/lib/graphql";
+import { useSession } from "next-auth/react";
 
 const PAGE_SIZE = 10;
 
 export default function CommunityFeed() {
   const router = useRouter();
   const parentRef = useRef<HTMLDivElement>(null);
+  const session = useSession();
 
   const fetchPosts = async ({ pageParam = 0 }) => {
-    const endpoint =
-      process.env.NEXT_PUBLIC_GRAPHQL_API_URL || "http://localhost:8080/query";
-    const data = await request<Query>(endpoint, GET_PUBLIC_POSTS, {
+    const client = getGraphQLClient(session.data?.backendToken);
+    const data = await client.request<Query>(GET_PUBLIC_POSTS, {
       limit: PAGE_SIZE,
       offset: pageParam,
     });

@@ -5,6 +5,7 @@ import { Users, Search } from "lucide-react";
 
 import { auth } from "@/auth";
 import { getGraphQLClient } from "@/lib/graphql";
+import { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +13,7 @@ async function getGroups(token?: string) {
   try {
     const client = getGraphQLClient(token);
     const data = await client.request<Query>(GET_GROUPS, {
-      limit: 50, 
+      limit: 50,
       offset: 0,
       type: "PUBLIC",
     });
@@ -22,8 +23,6 @@ async function getGroups(token?: string) {
     return [];
   }
 }
-
-import { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "All Communities - Wikinitt",

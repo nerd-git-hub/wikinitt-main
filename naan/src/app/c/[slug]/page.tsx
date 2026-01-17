@@ -1,73 +1,76 @@
-import { request } from "graphql-request";
-import {
-  GET_GROUP_BY_SLUG,
-  JOIN_GROUP,
-  LEAVE_GROUP,
-} from "@/queries/community";
+"use client";
+
+import { useEffect } from "react";
+import { GET_GROUP_BY_SLUG } from "@/queries/community";
 import { Query } from "@/gql/graphql";
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { Users, Calendar, MessageSquare, Heart } from "lucide-react";
+import { notFound, useParams } from "next/navigation";
+import { Users, Calendar } from "lucide-react";
 
-import { auth } from "@/auth";
+import { useSession } from "next-auth/react";
 import { getGraphQLClient } from "@/lib/graphql";
 import CommunityLoginPrompt from "@/components/CommunityLoginPrompt";
 import JoinGroupButton from "@/components/community/JoinGroupButton";
 import PostCard from "@/components/community/PostCard";
+import { useQuery } from "@tanstack/react-query";
 
-import { Metadata } from "next";
+export default function GroupPage() {
+  const { slug } = useParams<{ slug: string }>();
+  const { data: session, status } = useSession();
 
-async function getGroup(slug: string, token?: string) {
-  try {
-    const client = getGraphQLClient(token);
-    const data = await client.request<Query>(GET_GROUP_BY_SLUG, {
-      slug,
-      postLimit: 20,
-      postOffset: 0,
-    });
-    return data?.group;
-  } catch (error) {
-    console.error("Failed to fetch group:", error);
-    return null;
+  const {
+    data: group,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ["group", slug],
+    queryFn: async () => {
+      const client = getGraphQLClient(session?.backendToken);
+      const data = await client.request<Query>(GET_GROUP_BY_SLUG, {
+        slug,
+        postLimit: 20,
+        postOffset: 0,
+      });
+      return data?.group;
+    },
+    enabled: !!slug && status !== "loading",
+  });
+
+  useEffect(() => {
+    if (group) {
+      document.title = `${group.name} - Wikinitt`;
+    } else if (error || (group === null && !isLoading)) {
+      document.title = "Group Not Found - Wikinitt";
+    }
+  }, [group, error, isLoading]);
+
+  if (status === "loading" || isLoading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div>
+    );
   }
-}
-
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}): Promise<Metadata> {
-  const { slug } = await params;
-  const group = await getGroup(slug);
-
-  if (!group) {
-    return {
-      title: "Group Not Found - Wikinitt",
-    };
-  }
-
-  return {
-    title: `${group.name} - Wikinitt`,
-    description: group.description,
-  };
-}
-
-export default async function GroupPage({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}) {
-  const { slug } = await params;
-  const session = await auth();
 
   if (!session) {
     return <CommunityLoginPrompt />;
   }
 
-  const group = await getGroup(slug, session?.backendToken);
-
-  if (!group) {
-    notFound();
+  if (error || !group) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">404</h1>
+          <p className="text-lg text-gray-600">Group not found</p>
+          <Link
+            href="/c"
+            className="text-indigo-600 hover:underline mt-4 block"
+          >
+            Back to Community
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   const isOwner = group.owner.id === session?.user?.id;
@@ -75,7 +78,7 @@ export default async function GroupPage({
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
-        {}
+        {/* Header */}
         <div className="bg-white shadow rounded-lg mb-6 overflow-hidden">
           <div className="h-32 bg-indigo-600"></div>
           <div className="px-4 py-5 sm:px-6 relative">
@@ -143,7 +146,6 @@ export default async function GroupPage({
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {}
           <div className="lg:col-span-2 space-y-6">
             {group.posts.length === 0 ? (
               <div className="bg-white shadow rounded-lg p-6 text-center text-gray-500">
@@ -161,7 +163,6 @@ export default async function GroupPage({
             )}
           </div>
 
-          {}
           <div className="space-y-6">
             <div className="bg-white shadow rounded-lg p-6">
               <h3 className="text-lg font-medium text-gray-900 mb-4">About</h3>

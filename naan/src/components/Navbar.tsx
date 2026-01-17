@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { SearchModal } from "@/components/SearchModal";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import LogoIcon from "@/components/logo.svg";
@@ -139,9 +140,21 @@ export default function Navbar({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const { status } = useSession();
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        setIsSearchOpen((open: boolean) => !open);
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -236,15 +249,19 @@ export default function Navbar({ children }: { children: React.ReactNode }) {
             </div>
 
             <div className="hidden md:block flex-1 max-w-xl mx-4">
-              <div className="relative">
+              <div
+                className="relative cursor-pointer"
+                onClick={() => setIsSearchOpen(true)}
+              >
                 <div className="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
                   <Search className="w-4 h-4 text-gray-500" />
                 </div>
                 <input
                   type="search"
                   id="default-search"
-                  className="block w-full p-2 ps-10 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all"
-                  placeholder="Search..."
+                  className="block w-full p-2 ps-10 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all cursor-pointer"
+                  placeholder="Search... (Ctrl+K)"
+                  readOnly
                   required
                 />
               </div>
@@ -254,6 +271,7 @@ export default function Navbar({ children }: { children: React.ReactNode }) {
               {}
               <button
                 type="button"
+                onClick={() => setIsSearchOpen(true)}
                 className="md:hidden p-2 text-gray-500 rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200 me-2"
               >
                 <span className="sr-only">Search</span>
@@ -370,6 +388,10 @@ export default function Navbar({ children }: { children: React.ReactNode }) {
       >
         {children}
       </main>
+      <SearchModal
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+      />
     </>
   );
 }

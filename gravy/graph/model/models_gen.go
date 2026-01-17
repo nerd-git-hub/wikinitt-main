@@ -9,6 +9,10 @@ import (
 	"strconv"
 )
 
+type CommunityResult interface {
+	IsCommunityResult()
+}
+
 type Article struct {
 	ID          string      `json:"id"`
 	Title       string      `json:"title"`
@@ -52,6 +56,8 @@ type Comment struct {
 	CreatedAt    string      `json:"createdAt"`
 }
 
+func (Comment) IsCommunityResult() {}
+
 type CompleteSetupInput struct {
 	Username    string `json:"username"`
 	DisplayName string `json:"displayName"`
@@ -75,6 +81,8 @@ type Group struct {
 	Posts        []*Post     `json:"posts"`
 	CreatedAt    string      `json:"createdAt"`
 }
+
+func (Group) IsCommunityResult() {}
 
 type LoginInput struct {
 	Email    string `json:"email"`
@@ -151,6 +159,8 @@ type Post struct {
 	Comments      []*Comment  `json:"comments"`
 	CreatedAt     string      `json:"createdAt"`
 }
+
+func (Post) IsCommunityResult() {}
 
 type PublicUser struct {
 	ID          string     `json:"id"`

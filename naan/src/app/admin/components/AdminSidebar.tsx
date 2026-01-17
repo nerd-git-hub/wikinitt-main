@@ -11,24 +11,20 @@ export default function AdminSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [isMounted, setIsMounted] = useState(false);
-  const { data: session, status } = useSession();
+  const { status } = useSession();
 
-  
   useEffect(() => {
     setIsMounted(true);
 
-    
     if (pathname !== "/admin/login" && status === "unauthenticated") {
       router.push("/admin/login");
     }
   }, [pathname, router, status]);
 
-  
   if (pathname === "/admin/login") {
     return null;
   }
 
-  
   if (!isMounted) return null;
 
   const handleLogout = () => {

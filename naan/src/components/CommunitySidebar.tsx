@@ -14,10 +14,8 @@ export default function CommunitySidebar() {
   const { data: popularGroups, isLoading: isLoadingPopular } = useQuery({
     queryKey: ["publicGroups"],
     queryFn: async () => {
-      const endpoint =
-        process.env.NEXT_PUBLIC_GRAPHQL_API_URL ||
-        "http://localhost:8080/query";
-      const data = await request<Query>(endpoint, GET_GROUPS, {
+      const client = getGraphQLClient(session?.backendToken);
+      const data = await client.request<Query>(GET_GROUPS, {
         limit: 5,
         offset: 0,
         type: GroupType.Public,

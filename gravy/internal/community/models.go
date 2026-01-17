@@ -21,6 +21,7 @@ type Group struct {
 	MembersCount int       `bson:"membersCount"`
 	CreatedAt    time.Time `bson:"createdAt"`
 	MemberIDs    []string  `bson:"memberIds"`
+	Indexed      bool      `bson:"indexed"`
 }
 
 type GroupFilter struct {
@@ -37,6 +38,7 @@ type Post struct {
 	CommentsCount  int       `bson:"commentsCount"`
 	UpvotesCount   int       `bson:"upvotesCount"`
 	DownvotesCount int       `bson:"downvotesCount"`
+	Indexed        bool      `bson:"indexed"`
 	CreatedAt      time.Time `bson:"createdAt"`
 }
 
@@ -49,6 +51,7 @@ type Comment struct {
 	UpvotesCount   int       `bson:"upvotesCount"`
 	DownvotesCount int       `bson:"downvotesCount"`
 	RepliesCount   int       `bson:"repliesCount"`
+	Indexed        bool      `bson:"indexed"`
 	CreatedAt      time.Time `bson:"createdAt"`
 }
 

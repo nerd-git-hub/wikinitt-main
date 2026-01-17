@@ -16,6 +16,7 @@ import { useSession } from "next-auth/react";
 import { VOTE_POST } from "@/queries/community";
 import { useRouter } from "next/navigation";
 import { VoteType } from "@/gql/graphql";
+import { useState, useEffect } from "react";
 
 interface PostCardProps {
   post: Post;
@@ -33,6 +34,14 @@ export default function PostCard({
   const { data: session } = useSession();
   const router = useRouter();
 
+  const [userVote, setUserVote] = useState(post.userVote);
+  const [voteCount, setVoteCount] = useState(post.upvotes - post.downvotes);
+
+  useEffect(() => {
+    setUserVote(post.userVote);
+    setVoteCount(post.upvotes - post.downvotes);
+  }, [post.userVote, post.upvotes, post.downvotes]);
+
   const voteMutation = useMutation({
     mutationFn: async (type: VoteType) => {
       const client = getGraphQLClient(session?.backendToken);
@@ -44,38 +53,58 @@ export default function PostCard({
     onSuccess: () => {
       router.refresh();
     },
+    onError: () => {
+      // Revert on error
+      setUserVote(post.userVote);
+      setVoteCount(post.upvotes - post.downvotes);
+    },
   });
 
   const handleVote = (e: React.MouseEvent, type: VoteType) => {
     e.preventDefault();
     if (!session) return;
-    const currentVote = post.userVote;
+
+    const currentVote = userVote;
     let newVote = type;
+    let newVoteCount = voteCount;
+
     if (currentVote === type) {
       newVote = VoteType.None;
+      if (type === VoteType.Up) newVoteCount--;
+      else newVoteCount++;
+    } else {
+      if (currentVote === VoteType.Up) newVoteCount--;
+      else if (currentVote === VoteType.Down) newVoteCount++;
+
+      newVote = type;
+      if (newVote === VoteType.Up) newVoteCount++;
+      else newVoteCount--;
     }
+
+    setUserVote(newVote);
+    setVoteCount(newVoteCount);
     voteMutation.mutate(newVote);
   };
 
   return (
     <div className="flex bg-white border border-gray-200 rounded-md hover:border-gray-300 transition-colors cursor-pointer mb-2">
-      {}
+      {/* Vote Section */}
       <div className="flex flex-col items-center p-2 bg-gray-50 rounded-l-md w-10 sm:w-12 border-r border-gray-100">
         <button
           onClick={(e) => handleVote(e, VoteType.Up)}
           className={`hover:bg-gray-200 p-1 rounded ${
-            post.userVote === VoteType.Up ? "text-orange-500" : "text-gray-500"
+            userVote === VoteType.Up ? "text-orange-500" : "text-gray-500"
           }`}
         >
           <ArrowBigUp className="w-6 h-6" />
         </button>
         <span className="text-sm font-bold text-gray-700 my-1">
-          {post.upvotes - post.downvotes}
+          {voteCount}
         </span>
         <button
           onClick={(e) => handleVote(e, VoteType.Down)}
           className={`hover:bg-gray-200 p-1 rounded ${
-            post.userVote === VoteType.Down ? "text-blue-500" : "text-gray-500"
+            userVote === VoteType.Down ? "text-blue-500" : "text-gray-500"
           }`}
         >
           <ArrowBigDown className="w-6 h-6" />

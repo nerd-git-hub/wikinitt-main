@@ -1,68 +1,73 @@
-import { request } from "graphql-request";
+"use client";
+
+import { useEffect } from "react";
 import { GET_POST } from "@/queries/community";
 import { Query } from "@/gql/graphql";
-import { notFound } from "next/navigation";
+import { notFound, useParams } from "next/navigation";
 import PostView from "@/components/community/PostView";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
-import { auth } from "@/auth";
+import { useSession } from "next-auth/react";
 import { getGraphQLClient } from "@/lib/graphql";
 import CommunityLoginPrompt from "@/components/CommunityLoginPrompt";
+import { useQuery } from "@tanstack/react-query";
 
-import { Metadata } from "next";
+export default function PostPage() {
+  const { slug, postId } = useParams<{ slug: string; postId: string }>();
+  const { data: session, status } = useSession();
 
-export const dynamic = "force-dynamic";
+  const {
+    data: post,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ["post", postId],
+    queryFn: async () => {
+      const client = getGraphQLClient(session?.backendToken);
+      const data = await client.request<Query>(GET_POST, {
+        id: postId,
+      });
+      return data?.post;
+    },
+    enabled: !!postId && status !== "loading",
+  });
 
-async function getPost(id: string, token?: string) {
-  try {
-    const client = getGraphQLClient(token);
-    const data = await client.request<Query>(GET_POST, {
-      id,
-    });
-    return data?.post;
-  } catch (error) {
-    console.error("Failed to fetch post:", error);
-    return null;
+  useEffect(() => {
+    if (post) {
+      document.title = `${post.title} - Wikinitt`;
+    } else if (error || (post === null && !isLoading)) {
+      document.title = "Post Not Found - Wikinitt";
+    }
+  }, [post, error, isLoading]);
+
+  if (status === "loading" || isLoading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div>
+    );
   }
-}
-
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ slug: string; postId: string }>;
-}): Promise<Metadata> {
-  const { postId } = await params;
-  const post = await getPost(postId);
-
-  if (!post) {
-    return {
-      title: "Post Not Found - Wikinitt",
-    };
-  }
-
-  return {
-    title: `${post.title} - Wikinitt`,
-    description: post.content.substring(0, 160),
-  };
-}
-
-export default async function PostPage({
-  params,
-}: {
-  params: Promise<{ slug: string; postId: string }>;
-}) {
-  const { slug, postId } = await params;
-  const session = await auth();
 
   if (!session) {
     return <CommunityLoginPrompt />;
   }
 
-  const post = await getPost(postId, session?.backendToken);
-
-  if (!post) {
-    notFound();
+  if (error || !post) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">404</h1>
+          <p className="text-lg text-gray-600">Post not found</p>
+          <Link
+            href={`/c/${slug}`}
+            className="text-indigo-600 hover:underline mt-4 block"
+          >
+            Back to {slug}
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   return (

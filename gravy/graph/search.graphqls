@@ -1,0 +1,7 @@
+union CommunityResult = Post | Group | Comment
+
+extend type Query {
+  searchArticles(query: String!, limit: Int, offset: Int): [Article!]!
+  searchPosts(query: String!, limit: Int, offset: Int): [Post!]!
+  searchCommunity(query: String!, limit: Int, offset: Int): [CommunityResult!]!
+}

@@ -1,11 +1,26 @@
+"use client";
+
+import { useEffect } from "react";
 import CommunityFeed from "@/components/CommunityFeed";
 import CommunitySidebar from "@/components/CommunitySidebar";
 import MobileCommunityList from "@/components/MobileCommunityList";
 import CommunityLoginPrompt from "@/components/CommunityLoginPrompt";
-import { auth } from "@/auth";
+import { useSession } from "next-auth/react";
 
-export default async function CommunityPage() {
-  const session = await auth();
+export default function CommunityPage() {
+  const { data: session, status } = useSession();
+
+  useEffect(() => {
+    document.title = "Community - Wikinitt";
+  }, []);
+
+  if (status === "loading") {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
 
   if (!session) {
     return <CommunityLoginPrompt />;
