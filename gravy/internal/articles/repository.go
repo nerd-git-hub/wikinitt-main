@@ -36,6 +36,7 @@ type Repository interface {
 	ListUnindexed(ctx context.Context, limit int) ([]*Article, error)
 	MarkIndexed(ctx context.Context, id string) error
 	GetBySlug(ctx context.Context, slug string) (*Article, error)
+	EnsureIndexes(ctx context.Context) error
 }
 
 type repository struct {
@@ -243,4 +244,20 @@ func (r *repository) GetBySlug(ctx context.Context, slug string) (*Article, erro
 		return nil, err
 	}
 	return &article, nil
+}
+
+func (r *repository) EnsureIndexes(ctx context.Context) error {
+	indices := []mongo.IndexModel{
+		{
+			Keys:    bson.D{{Key: "slug", Value: 1}},
+			Options: options.Index().SetUnique(true),
+		},
+		{Keys: bson.D{{Key: "category", Value: 1}}},
+		{Keys: bson.D{{Key: "featured", Value: 1}}},
+		{Keys: bson.D{{Key: "createdAt", Value: -1}}},
+		{Keys: bson.D{{Key: "indexed", Value: 1}}},
+	}
+
+	_, err := r.coll.Indexes().CreateMany(ctx, indices)
+	return err
 }

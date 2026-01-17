@@ -60,6 +60,7 @@ type Repository interface {
 	MarkPostIndexed(ctx context.Context, id string) error
 	ListUnindexedComments(ctx context.Context, limit int) ([]*Comment, error)
 	MarkCommentIndexed(ctx context.Context, id string) error
+	EnsureIndexes(ctx context.Context) error
 }
 
 type repository struct {
@@ -1044,4 +1045,85 @@ func (r *repository) MarkCommentIndexed(ctx context.Context, id string) error {
 	}
 	_, err = r.db.Collection("comments").UpdateOne(ctx, bson.M{"_id": idObj}, bson.M{"$set": bson.M{"indexed": true}})
 	return err
+}
+
+func (r *repository) EnsureIndexes(ctx context.Context) error {
+	// Groups
+	_, err := r.db.Collection("groups").Indexes().CreateMany(ctx, []mongo.IndexModel{
+		{
+			Keys:    bson.D{{Key: "slug", Value: 1}},
+			Options: options.Index().SetUnique(true),
+		},
+		{Keys: bson.D{{Key: "ownerId", Value: 1}}},
+		{Keys: bson.D{{Key: "type", Value: 1}}},
+		{Keys: bson.D{{Key: "memberIds", Value: 1}}},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create group indexes: %w", err)
+	}
+
+	// Posts
+	_, err = r.db.Collection("posts").Indexes().CreateMany(ctx, []mongo.IndexModel{
+		{Keys: bson.D{{Key: "groupId", Value: 1}}},
+		{Keys: bson.D{{Key: "authorId", Value: 1}}},
+		{Keys: bson.D{{Key: "createdAt", Value: -1}}},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create post indexes: %w", err)
+	}
+
+	// Comments
+	_, err = r.db.Collection("comments").Indexes().CreateMany(ctx, []mongo.IndexModel{
+		{Keys: bson.D{{Key: "postId", Value: 1}}},
+		{Keys: bson.D{{Key: "parentId", Value: 1}}},
+		{Keys: bson.D{{Key: "authorId", Value: 1}}},
+		{Keys: bson.D{{Key: "createdAt", Value: 1}}},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create comment indexes: %w", err)
+	}
+
+	// Votes
+	_, err = r.db.Collection("votes").Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys:    bson.D{{Key: "userId", Value: 1}, {Key: "postId", Value: 1}},
+		Options: options.Index().SetUnique(true),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create vote indexes: %w", err)
+	}
+
+	// CommentVotes
+	_, err = r.db.Collection("commentVotes").Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys:    bson.D{{Key: "userId", Value: 1}, {Key: "commentId", Value: 1}},
+		Options: options.Index().SetUnique(true),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create comment vote indexes: %w", err)
+	}
+
+	// Discussions
+	_, err = r.db.Collection("discussions").Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys: bson.D{{Key: "groupId", Value: 1}},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create discussion indexes: %w", err)
+	}
+
+	// Channels
+	_, err = r.db.Collection("channels").Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys: bson.D{{Key: "discussionId", Value: 1}},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create channel indexes: %w", err)
+	}
+
+	// Messages
+	_, err = r.db.Collection("messages").Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys: bson.D{{Key: "channelId", Value: 1}},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create message indexes: %w", err)
+	}
+
+	return nil
 }

@@ -63,6 +63,17 @@ func main() {
 	categoryRepo := categories.NewRepository(database)
 	communityRepo := community.NewRepository(database, searchClient)
 
+	ctx := context.Background()
+	if err := userRepo.EnsureIndexes(ctx); err != nil {
+		log.Printf("Failed to create user indexes: %v", err)
+	}
+	if err := articleRepo.EnsureIndexes(ctx); err != nil {
+		log.Printf("Failed to create article indexes: %v", err)
+	}
+	if err := communityRepo.EnsureIndexes(ctx); err != nil {
+		log.Printf("Failed to create community indexes: %v", err)
+	}
+
 	cldName := os.Getenv("CLOUDINARY_CLOUD_NAME")
 	cldKey := os.Getenv("CLOUDINARY_API_KEY")
 	cldSecret := os.Getenv("CLOUDINARY_API_SECRET")

@@ -46,6 +46,7 @@ type Repository interface {
 	Unblock(ctx context.Context, id string) error
 	CompleteSetup(ctx context.Context, id, username, displayName string) error
 	Update(ctx context.Context, id string, updates map[string]interface{}) (*User, error)
+	EnsureIndexes(ctx context.Context) error
 }
 
 type repository struct {
@@ -167,4 +168,24 @@ func (r *repository) Update(ctx context.Context, id string, updates map[string]i
 		return nil, err
 	}
 	return &updatedUser, nil
+}
+
+func (r *repository) EnsureIndexes(ctx context.Context) error {
+	indices := []mongo.IndexModel{
+		{
+			Keys:    bson.D{{Key: "dauthId", Value: 1}},
+			Options: options.Index().SetUnique(true),
+		},
+		{
+			Keys:    bson.D{{Key: "email", Value: 1}},
+			Options: options.Index().SetUnique(true),
+		},
+		{
+			Keys:    bson.D{{Key: "username", Value: 1}},
+			Options: options.Index().SetUnique(true),
+		},
+	}
+
+	_, err := r.coll.Indexes().CreateMany(ctx, indices)
+	return err
 }
