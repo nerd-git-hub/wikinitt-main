@@ -197,8 +197,8 @@ func (r *mutationResolver) CreateGroup(ctx context.Context, input model.NewGroup
 	}
 
 	group := &community.Group{
-		Name:         sanitization.SanitizeString(input.Name),
-		Description:  sanitization.SanitizeContent(input.Description),
+		Name:         input.Name,
+		Description:  input.Description,
 		Slug:         slug,
 		Type:         community.GroupType(input.Type),
 		OwnerID:      user.ID,

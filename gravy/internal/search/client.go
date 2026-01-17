@@ -196,7 +196,7 @@ func (c *Client) SearchPosts(ctx context.Context, query string, limit, offset in
 	searchRes, err := c.client.Index("community").Search(query, &meilisearch.SearchRequest{
 		Limit:  int64(limit),
 		Offset: int64(offset),
-		Filter: "type = post",
+		Filter: "type = post AND group_type = 'PUBLIC'",
 	})
 	if err != nil {
 		return nil, fmt.Errorf("search posts failed: %w", err)
@@ -224,6 +224,7 @@ func (c *Client) SearchCommunity(ctx context.Context, query string, limit, offse
 	searchRes, err := c.client.Index("community").Search(query, &meilisearch.SearchRequest{
 		Limit:  int64(limit),
 		Offset: int64(offset),
+		Filter: "group_type = 'PUBLIC'",
 	})
 	if err != nil {
 		return nil, fmt.Errorf("search community failed: %w", err)

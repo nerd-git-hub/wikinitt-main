@@ -109,7 +109,7 @@ func (r *mutationResolver) CompleteSetup(ctx context.Context, input model.Comple
 		return "", fmt.Errorf("username already taken")
 	}
 
-	err = r.UserRepo.CompleteSetup(ctx, user.ID, sanitization.SanitizeString(input.Username), sanitization.SanitizeString(input.DisplayName))
+	err = r.UserRepo.CompleteSetup(ctx, user.ID, sanitization.SanitizeString(input.Username), input.DisplayName)
 	if err != nil {
 		fmt.Printf("CompleteSetup failed: %v\n", err)
 		return "", fmt.Errorf("failed to complete setup: %w", err)
@@ -168,7 +168,7 @@ func (r *mutationResolver) UpdateUser(ctx context.Context, input model.UpdateUse
 		updates["username"] = sanitization.SanitizeString(*input.Username)
 	}
 	if input.DisplayName != nil {
-		updates["display_name"] = sanitization.SanitizeString(*input.DisplayName)
+		updates["display_name"] = *input.DisplayName
 	}
 	if input.Avatar != nil {
 		updates["avatar"] = sanitization.SanitizeString(*input.Avatar)

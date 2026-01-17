@@ -88,7 +88,7 @@ func (r *mutationResolver) CreateChannel(ctx context.Context, input model.NewCha
 
 	channel := &community.Channel{
 		DiscussionID: input.DiscussionID,
-		Name:         sanitization.SanitizeString(input.Name),
+		Name:         input.Name,
 		Type:         community.ChannelType(input.Type),
 		CreatedAt:    time.Now(),
 	}

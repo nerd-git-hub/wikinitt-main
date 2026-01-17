@@ -25,10 +25,10 @@ func (r *mutationResolver) CreateArticle(ctx context.Context, input model.NewArt
 	}
 
 	article := articles.Article{
-		Title:     sanitization.SanitizeString(input.Title),
+		Title:     input.Title,
 		Content:   sanitization.SanitizeContent(input.Content),
 		Slug:      slug,
-		Category:  sanitization.SanitizeString(input.Category),
+		Category:  input.Category,
 		Thumbnail: sanitization.SanitizeString(input.Thumbnail),
 		Featured:  input.Featured,
 	}
@@ -58,13 +58,13 @@ func (r *mutationResolver) CreateArticle(ctx context.Context, input model.NewArt
 func (r *mutationResolver) UpdateArticle(ctx context.Context, input model.UpdateArticle) (*model.Article, error) {
 	updates := make(map[string]interface{})
 	if input.Title != nil {
-		updates["title"] = sanitization.SanitizeString(*input.Title)
+		updates["title"] = *input.Title
 	}
 	if input.Content != nil {
 		updates["content"] = sanitization.SanitizeContent(*input.Content)
 	}
 	if input.Category != nil {
-		updates["category"] = sanitization.SanitizeString(*input.Category)
+		updates["category"] = *input.Category
 	}
 	if input.Thumbnail != nil {
 		updates["thumbnail"] = sanitization.SanitizeString(*input.Thumbnail)
