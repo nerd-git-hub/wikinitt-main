@@ -30,9 +30,11 @@
 
 ### Main Stuff
 
-<iframe width="1071" height="512" src="https://www.youtube.com/embed/vRE85ew7BMI" title="WikiNITT main" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+[Watch on YouTube](https://www.youtube.com/watch?v=vRE85ew7BMI)
+
 ## Admin Panel
-<iframe width="1071" height="512" src="https://www.youtube.com/embed/xb-Zwz1I9nY" title="WikiNITT admin" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+[Watch on YouTube](https://www.youtube.com/watch?v=xb-Zwz1I9nY)
 
 ## Features
 
