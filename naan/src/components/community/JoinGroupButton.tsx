@@ -35,6 +35,7 @@ export default function JoinGroupButton({
       setIsMember(true);
       queryClient.invalidateQueries({ queryKey: ["groups"] });
       queryClient.invalidateQueries({ queryKey: ["group"] }); // Invalidate specific group query
+      queryClient.invalidateQueries({ queryKey: ["myGroups"] });
       router.refresh();
     },
     onError: (error: any) => {
@@ -51,6 +52,7 @@ export default function JoinGroupButton({
       setIsMember(false);
       queryClient.invalidateQueries({ queryKey: ["groups"] });
       queryClient.invalidateQueries({ queryKey: ["group"] });
+      queryClient.invalidateQueries({ queryKey: ["myGroups"] });
       router.refresh();
     },
   });

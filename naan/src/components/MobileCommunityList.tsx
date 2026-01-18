@@ -25,7 +25,7 @@ export default function MobileCommunityList() {
   });
 
   const { data: myGroups, isLoading: isLoadingMyGroups } = useQuery({
-    queryKey: ["myGroups", session?.user?.id],
+    queryKey: ["myGroups", session?.backendToken],
     queryFn: async () => {
       if (!session?.backendToken) return [];
       const client = getGraphQLClient(session.backendToken);
