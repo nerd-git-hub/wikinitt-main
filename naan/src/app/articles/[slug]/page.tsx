@@ -4,43 +4,41 @@ import ReactMarkdown from "react-markdown";
 import remarkBreaks from "remark-breaks";
 import FormattedDate from "@/components/FormattedDate";
 
-const ARTICLES: Record<
-  string,
-  {
-    title: string;
-    category: string;
-    createdAt: string;
-    author: { name: string; avatar?: string };
-    thumbnail?: string;
-    content: string;
-  }
-> = {
-  "nextjs-basics": {
-    title: "Next.js Basics",
-    category: "Web",
-    createdAt: "2026-01-20",
-    author: { name: "WikiNITT Team" },
-    thumbnail: "/images/placeholder.png",
-    content: `
-# Next.js 
-;lkl;k
-;lkll
-l;kl;kk;l
-l;k;l
-`,
-  },
+type Article = {
+  title: string;
+  category: string;
+  createdAt: string;
+  author: { name: string; avatar?: string };
+  thumbnail?: string;
+  content: string;
 };
 
 function rewriteInternalLinks(markdown: string) {
-  return markdown.replace(/\]\((\/(?!\/)[^)]+)\)/g, "](\/articles$1)");
+  return markdown.replace(
+    /(?<!\!)\]\((\/(?!\/)[^)]+)\)/g,
+    "](\/articles$1)"
+  );
 }
 
-export default function ArticlePage({
+async function getArticle(slug: string): Promise<Article | null> {
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_GRAPHQL_API_UR}/api/articles/${slug}`,
+    {
+      cache: "no-store", // SSR, always fresh
+    }
+  );
+
+  if (!res.ok) return null;
+
+  return res.json();
+}
+
+export default async function ArticlePage({
   params,
 }: {
   params: { slug: string };
 }) {
-  const article = ARTICLES[params.slug];
+  const article = await getArticle(params.slug);
 
   if (!article) notFound();
 
