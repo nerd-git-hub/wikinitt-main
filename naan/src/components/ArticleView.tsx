@@ -9,9 +9,9 @@ import rehypeSlug from "rehype-slug";
 import FormattedDate from "@/components/FormattedDate";
 import { useEffect, useState, useRef } from "react";
 import { motion, useScroll, useSpring } from "framer-motion";
-import { 
-  Clock, Calendar, ChevronLeft, ChevronDown, Twitter, Linkedin, Facebook, 
-  Link as LinkIcon, Check, User as UserIcon, Play, Pause, Square, Headphones, Share2 
+import {
+  Clock, Calendar, ChevronLeft, ChevronDown, Twitter, Linkedin, Facebook,
+  Link as LinkIcon, Check, User as UserIcon, Play, Pause, Square, Headphones, Share2
 } from "lucide-react";
 import Link from "next/link";
 import { Article } from "@/gql/graphql"; // Import type
@@ -32,7 +32,7 @@ interface TOCItem {
 export default function ArticleView({ data }: { data: Article }) {
   const [headings, setHeadings] = useState<TOCItem[]>([]);
   const [copied, setCopied] = useState(false);
-  
+
   // TTS State
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -116,7 +116,7 @@ export default function ArticleView({ data }: { data: Article }) {
 
   return (
     <div className="min-h-screen bg-[#F9FAFB] font-sans text-gray-900 selection:bg-indigo-100 selection:text-indigo-900">
-      <motion.div className="fixed top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 origin-left z-[60]" style={{ scaleX }} />
+      <motion.div className="fixed top-0 left-0 right-0 h-1.5 bg-linear-to-r from-indigo-500 via-purple-500 to-pink-500 origin-left z-60" style={{ scaleX }} />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Link href="/articles" className="inline-flex items-center text-sm font-semibold text-gray-500 hover:text-indigo-600 transition-all group">
@@ -126,9 +126,9 @@ export default function ArticleView({ data }: { data: Article }) {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-24">
         <div className="flex flex-col lg:flex-row gap-12 lg:gap-16 relative">
-          
+
           {/* DESKTOP SIDEBAR */}
-          <aside className="hidden lg:block w-72 flex-shrink-0 order-1 lg:order-1">
+          <aside className="hidden lg:block w-72 shrink-0 order-1 lg:order-1">
             <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }} className="sticky top-28 flex flex-col gap-8">
               <div className="p-6 rounded-2xl bg-white/70 backdrop-blur-xl border border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
                 <h3 className="text-xs font-extrabold text-gray-400 uppercase tracking-widest mb-4">Table of Contents</h3>
@@ -173,15 +173,15 @@ export default function ArticleView({ data }: { data: Article }) {
 
             {/* AUDIO PLAYER */}
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mb-10">
-              <div className={`relative overflow-hidden rounded-2xl border transition-all duration-300 ${isSpeaking ? "bg-indigo-600 border-indigo-600 shadow-lg shadow-indigo-200" : "bg-gradient-to-br from-indigo-50 to-white border-indigo-100 shadow-sm hover:shadow-md"}`}>
+              <div className={`relative overflow-hidden rounded-2xl border transition-all duration-300 ${isSpeaking ? "bg-indigo-600 border-indigo-600 shadow-lg shadow-indigo-200" : "bg-linear-to-br from-indigo-50 to-white border-indigo-100 shadow-sm hover:shadow-md"}`}>
                 <div className="relative z-10 p-5 sm:p-6 flex items-center justify-between gap-4">
                   <div className="flex items-center gap-5">
-                    <button onClick={handleSpeak} className={`w-14 h-14 rounded-full flex items-center justify-center transition-all transform hover:scale-105 shadow-md flex-shrink-0 ${isSpeaking ? "bg-white text-indigo-600" : "bg-indigo-600 text-white hover:bg-indigo-700"}`}>{isSpeaking && !isPaused ? <Pause className="w-6 h-6 fill-current" /> : <Play className="w-6 h-6 fill-current ml-1" />}</button>
+                    <button onClick={handleSpeak} className={`w-14 h-14 rounded-full flex items-center justify-center transition-all transform hover:scale-105 shadow-md shrink-0 ${isSpeaking ? "bg-white text-indigo-600" : "bg-indigo-600 text-white hover:bg-indigo-700"}`}>{isSpeaking && !isPaused ? <Pause className="w-6 h-6 fill-current" /> : <Play className="w-6 h-6 fill-current ml-1" />}</button>
                     <div className="flex flex-col"><h3 className={`font-bold text-lg ${isSpeaking ? "text-white" : "text-gray-900"}`}>{isSpeaking ? "Now Playing" : "Listen to this article"}</h3><div className={`flex items-center text-sm font-medium mt-1 ${isSpeaking ? "text-indigo-100" : "text-gray-500"}`}><Headphones className="w-4 h-4 mr-2" /><span>Audio Version Available</span></div></div>
                   </div>
                   <div className="flex items-center gap-4">{(isSpeaking || isPaused) && <button onClick={handleStop} className={`p-2 rounded-lg transition-colors ${isSpeaking ? "bg-indigo-500/50 text-white hover:bg-indigo-500" : "bg-gray-100 text-gray-500 hover:bg-gray-200"}`}><Square className="w-5 h-5 fill-current" /></button>}</div>
                 </div>
-                {!isSpeaking && <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-gradient-to-l from-indigo-100/50 to-transparent pointer-events-none" />}
+                {!isSpeaking && <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-linear-to-l from-indigo-100/50 to-transparent pointer-events-none" />}
               </div>
             </motion.div>
 
@@ -197,15 +197,15 @@ export default function ArticleView({ data }: { data: Article }) {
                 </summary>
                 <nav className="p-4 bg-white flex flex-col gap-1 max-h-64 overflow-y-auto">
                   {headings.map((heading, index) => (
-                     <a key={index} href={`#${heading.id}`} onClick={(e) => { e.preventDefault(); const details = e.currentTarget.closest('details'); if (details) details.open = false; document.getElementById(heading.id)?.scrollIntoView({ behavior: "smooth" }); }} className={`block text-sm py-2.5 px-3 rounded-lg transition-colors text-gray-600 hover:bg-indigo-50 ${heading.level === 1 ? "font-bold text-gray-900" : "font-medium"}`}>{heading.text}</a>
+                    <a key={index} href={`#${heading.id}`} onClick={(e) => { e.preventDefault(); const details = e.currentTarget.closest('details'); if (details) details.open = false; document.getElementById(heading.id)?.scrollIntoView({ behavior: "smooth" }); }} className={`block text-sm py-2.5 px-3 rounded-lg transition-colors text-gray-600 hover:bg-indigo-50 ${heading.level === 1 ? "font-bold text-gray-900" : "font-medium"}`}>{heading.text}</a>
                   ))}
                 </nav>
               </details>
               <div className="flex items-center justify-between p-4 rounded-2xl bg-white border border-gray-100 shadow-sm">
-                 <div className="flex items-center gap-2 text-gray-500 font-bold text-sm uppercase tracking-wider"><Share2 className="w-4 h-4" /><span>Share</span></div>
-                 <div className="flex gap-2">
-                    {[{ icon: Twitter, color: "text-sky-500 bg-sky-50", action: () => window.open(getShareUrl('twitter'), '_blank') }, { icon: Linkedin, color: "text-blue-600 bg-blue-50", action: () => window.open(getShareUrl('linkedin'), '_blank') }, { icon: Facebook, color: "text-indigo-600 bg-indigo-50", action: () => window.open(getShareUrl('facebook'), '_blank') }].map((btn, i) => (<button key={i} onClick={btn.action} className={`p-2 rounded-lg ${btn.color} hover:opacity-80 transition-opacity`}><btn.icon className="w-5 h-5" /></button>))}
-                 </div>
+                <div className="flex items-center gap-2 text-gray-500 font-bold text-sm uppercase tracking-wider"><Share2 className="w-4 h-4" /><span>Share</span></div>
+                <div className="flex gap-2">
+                  {[{ icon: Twitter, color: "text-sky-500 bg-sky-50", action: () => window.open(getShareUrl('twitter'), '_blank') }, { icon: Linkedin, color: "text-blue-600 bg-blue-50", action: () => window.open(getShareUrl('linkedin'), '_blank') }, { icon: Facebook, color: "text-indigo-600 bg-indigo-50", action: () => window.open(getShareUrl('facebook'), '_blank') }].map((btn, i) => (<button key={i} onClick={btn.action} className={`p-2 rounded-lg ${btn.color} hover:opacity-80 transition-opacity`}><btn.icon className="w-5 h-5" /></button>))}
+                </div>
               </div>
             </div>
 
