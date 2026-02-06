@@ -1,298 +1,176 @@
-// naan/src/app/chat/page.tsx
-'use client';
+"use client";
 
-import React, { useState, useEffect, useRef } from 'react';
-import styles from './chat.module.css';
+import { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+  Send, Paperclip, MoreVertical, Phone, Video, Smile, ChevronLeft,
+  Bot, User, Search, Settings, ArrowLeft
+} from "lucide-react";
+import Link from "next/link";
 
-// --- Icons ---
-const SendIcon = () => (
-  <svg stroke="currentColor" fill="none" strokeWidth="2" viewBox="0 0 24 24" height="1.1em" width="1.1em">
-    <line x1="22" y1="2" x2="11" y2="13"></line>
-    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-  </svg>
-);
-const PlusIcon = () => (
-  <svg stroke="currentColor" fill="none" strokeWidth="2" viewBox="0 0 24 24" height="1em" width="1em">
-    <line x1="12" y1="5" x2="12" y2="19"></line>
-    <line x1="5" y1="12" x2="19" y2="12"></line>
-  </svg>
-);
-const QuestionIcon = () => (
-  <svg stroke="currentColor" fill="none" strokeWidth="2" viewBox="0 0 24 24" height="1em" width="1em">
-    <circle cx="12" cy="12" r="10"></circle>
-    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-    <line x1="12" y1="17" x2="12.01" y2="17"></line>
-  </svg>
-);
-const MenuIcon = () => (
-  <svg stroke="currentColor" fill="none" strokeWidth="2.5" viewBox="0 0 24 24" height="1.4em" width="1.4em">
-    <line x1="3" y1="12" x2="21" y2="12"></line>
-    <line x1="3" y1="6" x2="21" y2="6"></line>
-    <line x1="3" y1="18" x2="21" y2="18"></line>
-  </svg>
-);
-const CloseIcon = () => (
-  <svg stroke="currentColor" fill="none" strokeWidth="2.5" viewBox="0 0 24 24" height="1.4em" width="1.4em">
-    <line x1="18" y1="6" x2="6" y2="18"></line>
-    <line x1="6" y1="6" x2="18" y2="18"></line>
-  </svg>
-);
-
-// --- Data ---
-const FAQ_LIST = [
-  "How to reach NIT Trichy?",
-  "Hostel admission info?",
-  "Departments list?",
-  "Academic calendar?",
-  "Mess menu?",
-  "Sports facilities?",
+// Mock Data
+const MOCK_MESSAGES = [
+  { id: 1, text: "Hello! I'm the WikiNITT Assistant. How can I help you today?", sender: "bot", time: "10:00 AM" },
 ];
 
-interface Message {
-  id: string;
-  role: 'user' | 'bot';
-  content: string;
-  isTyping?: boolean;
-}
+const CONTACTS = [
+  { id: 1, name: "WikiNITT Bot", active: true, message: "Online", time: "Now", avatar: null },
+  { id: 2, name: "Community Support", active: false, message: "Ticket #4291 resolved", time: "2h ago", avatar: null },
+];
 
 export default function ChatPage() {
-  const [input, setInput] = useState('');
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const cursorRef = useRef<HTMLDivElement>(null);
+  const [messages, setMessages] = useState(MOCK_MESSAGES);
+  const [input, setInput] = useState("");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // --- Mobile Sidebar Toggle ---
-  const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
-  const closeSidebar = () => setIsSidebarOpen(false);
-
-  // --- Custom Cursor Logic ---
-  useEffect(() => {
-    const cursor = cursorRef.current;
-    if (!cursor) return;
-
-    const moveCursor = (e: MouseEvent) => {
-      cursor.style.left = `${e.clientX}px`;
-      cursor.style.top = `${e.clientY}px`;
-    };
-
-    const addHover = () => cursor.classList.add(styles.cursorHover);
-    const removeHover = () => cursor.classList.remove(styles.cursorHover);
-
-    // Check for touch device
-    const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-    
-    if (!isTouch) {
-      window.addEventListener('mousemove', moveCursor);
-      const interactiveElements = document.querySelectorAll('button, a, textarea, .clickable');
-      interactiveElements.forEach(el => {
-        el.addEventListener('mouseenter', addHover);
-        el.addEventListener('mouseleave', removeHover);
-      });
-    }
-
-    return () => {
-      if (!isTouch) {
-        window.removeEventListener('mousemove', moveCursor);
-        const interactiveElements = document.querySelectorAll('button, a, textarea, .clickable');
-        interactiveElements.forEach(el => {
-          el.removeEventListener('mouseenter', addHover);
-          el.removeEventListener('mouseleave', removeHover);
-        });
-      }
-    };
-  }, [messages, isSidebarOpen]); 
-
-  // --- Chat Logic ---
-  const scrollToBottom = () => bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  useEffect(() => scrollToBottom(), [messages]);
-
-  const handleSend = async (textOverride?: string) => {
-    const textToSend = textOverride || input;
-    if (!textToSend.trim()) return;
-
-    closeSidebar(); 
-
-    const userMsg: Message = { id: Date.now().toString(), role: 'user', content: textToSend };
-    setMessages(prev => [...prev, userMsg]);
-    setInput('');
-
-    setTimeout(() => {
-      let botResponse = "I am the NIT Trichy Campus Bot. I can help you navigate the campus, find info about hostels, or academic details.";
-      
-      const lowerText = textToSend.toLowerCase();
-      if (lowerText.includes("reach")) {
-        botResponse = "NIT Trichy is located on the Trichy-Thanjavur highway (NH 67). It's about 22 km from the Railway Station (TPJ) and 17 km from the Airport.";
-      } else if (lowerText.includes("hostel")) {
-        botResponse = "Hostel admission starts during physical reporting. First years are allotted Amber, Agate, or Garnet blocks.";
-      } else if (lowerText.includes("mess")) {
-        botResponse = "Feathers, 1986, and Annapurna are popular choices. The menu changes monthly based on student council recommendations.";
-      } else if (lowerText.includes("sports")) {
-        botResponse = "We have a swimming pool, cricket stadium, football ground, and an indoor sports center (Barn).";
-      }
-
-      const botMsg: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'bot',
-        content: botResponse,
-        isTyping: true
-      };
-      setMessages(prev => [...prev, botMsg]);
-    }, 600);
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
+  useEffect(() => { scrollToBottom(); }, [messages]);
+
+  const handleSend = () => {
+    if (!input.trim()) return;
+    const newMessage = {
+      id: messages.length + 1,
+      text: input,
+      sender: "user",
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+    setMessages([...messages, newMessage]);
+    setInput("");
+    setTimeout(() => {
+      setMessages(prev => [...prev, {
+        id: prev.length + 1,
+        text: "I'm just a UI demo, but I look great! ✨",
+        sender: "bot",
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      }]);
+    }, 1000);
   };
 
   return (
-    <div className={styles.container}>
-      {/* Background */}
-      <div className={styles.backgroundWrapper}>
-        <div className={styles.backgroundImage}></div>
-        <div className={styles.backgroundOverlay}></div>
-      </div>
+    // Changed: h-screen (full height), Removed mt-20
+    <div className="relative w-full h-screen overflow-hidden font-poppins text-gray-800 bg-transparent p-4 md:p-6">
+      
+      {/* Back to Home Button (Since Navbar is gone) */}
+      <Link 
+        href="/" 
+        className="absolute top-6 left-6 z-50 p-2 bg-white/50 backdrop-blur-md rounded-full shadow-sm hover:bg-white transition-all md:hidden"
+      >
+        <ArrowLeft className="w-5 h-5 text-gray-700" />
+      </Link>
 
-      {/* Custom Cursor */}
-      <div ref={cursorRef} className={styles.customCursor}></div>
+      <div className="relative z-10 h-full max-w-[1600px] mx-auto flex gap-6">
 
-      {/* Mobile Overlay */}
-      <div 
-        className={`${styles.mobileOverlay} ${isSidebarOpen ? styles.open : ''}`} 
-        onClick={closeSidebar}
-      />
-
-      {/* Sidebar */}
-      <div className={`${styles.sidebar} ${isSidebarOpen ? styles.open : ''}`}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <button className={`${styles.newChatBtn} clickable`} onClick={() => { setMessages([]); closeSidebar(); }} style={{ marginBottom: 0, flex: 1 }}>
-            <PlusIcon />
-            <span>New Chat</span>
-            </button>
+        {/* === SIDEBAR === */}
+        <motion.aside 
+          initial={{ opacity: 0, x: -50 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.5 }}
+          className={`${isSidebarOpen ? 'flex' : 'hidden'} md:flex flex-col w-full md:w-80 h-full bg-white/40 backdrop-blur-xl border border-white/60 rounded-3xl shadow-[0_8px_32px_rgba(31,38,135,0.05)] overflow-hidden shrink-0`}
+        >
+          {/* Header with Back Button for Desktop */}
+          <div className="p-6 border-b border-white/30">
+            <div className="flex items-center gap-3 mb-6">
+               <Link href="/" className="p-2 -ml-2 rounded-full hover:bg-white/40 transition-colors" title="Back to Home">
+                  <ArrowLeft className="w-5 h-5 text-gray-600" />
+               </Link>
+               <h2 className="text-xl font-bold text-gray-800">Chats</h2>
+            </div>
             
-            <button 
-                onClick={closeSidebar} 
-                className="clickable"
-                style={{ background: 'transparent', border: 'none', color: '#888', marginLeft: '10px', display: 'flex', cursor: 'pointer', padding: '0.5rem' }}
-            >
-                <CloseIcon />
-            </button>
-        </div>
-        
-        <div className={styles.sectionTitle}>Frequently Asked</div>
-        
-        <div className={styles.questionList}>
-          {FAQ_LIST.map((question, idx) => (
-            <button 
-              key={idx} 
-              className={`${styles.questionItem} clickable`}
-              onClick={() => handleSend(question)}
-            >
-              <QuestionIcon />
-              <span>{question}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Main Chat Area */}
-      <div className={styles.main}>
-        {/* Mobile Header */}
-        <div className={styles.mobileHeader}>
-            <button className={`${styles.menuBtn} clickable`} onClick={toggleSidebar}>
-                <MenuIcon />
-            </button>
-            <span style={{ fontWeight: 600, fontSize: '0.95rem', letterSpacing: '0.5px' }}>NITT Chat</span>
-            <div style={{ width: '32px' }}></div>
-        </div>
-
-        <div className={styles.chatScrollArea}>
-          {messages.length === 0 && (
-            <div className={styles.emptyState}>
-              <div className={styles.nittLogo}>
-                <span style={{ fontSize: '1.4rem', fontWeight: 'bold', color: 'white' }}>NITT</span>
-              </div>
-              <h2 className={styles.welcomeTitle}>NITT Assistant</h2>
-              <p style={{ color: '#aaa', marginTop: '0.2rem', fontSize: '0.85rem' }}>
-                Your guide to campus life, admissions, and more.
-              </p>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input type="text" placeholder="Search..." className="w-full pl-10 pr-4 py-2.5 bg-white/50 border border-white/50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50" />
             </div>
-          )}
-          
-          {messages.map((msg) => (
-            <div key={msg.id} className={`${styles.messageRow} ${msg.role === 'bot' ? styles.botRow : ''}`}>
-              <div className={styles.messageContent}>
-                <div className={`${styles.avatar} ${msg.role === 'bot' ? styles.botAvatar : styles.userAvatar}`}>
-                  {msg.role === 'bot' ? "AI" : "You"}
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-4 space-y-2">
+            {CONTACTS.map((contact) => (
+              <div key={contact.id} className={`flex items-center gap-4 p-3 rounded-2xl cursor-pointer transition-all ${contact.active ? 'bg-white/80 shadow-sm border border-white/50' : 'hover:bg-white/30'}`}>
+                <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-br from-indigo-400 to-purple-500 text-white shadow-sm">
+                   {contact.name[0]}
                 </div>
-                <div className={styles.text}>
-                  {msg.isTyping ? (
-                    <Typewriter 
-                      text={msg.content} 
-                      onComplete={() => {
-                        setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, isTyping: false } : m));
-                      }} 
-                    />
-                  ) : msg.content}
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-sm truncate">{contact.name}</h3>
+                  <p className="text-xs text-gray-500 truncate">{contact.message}</p>
                 </div>
               </div>
-            </div>
-          ))}
-          <div ref={bottomRef} style={{ height: '1px' }} />
-        </div>
+            ))}
+          </div>
+        </motion.aside>
 
-        {/* Input */}
-        <div className={styles.inputContainer}>
-          <div className={styles.inputBoxWrapper}>
-            <textarea
-              className={`${styles.textarea} clickable`}
-              placeholder="Ask a question..."
-              rows={1}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-            />
-            <button 
-              className={`${styles.sendButton} clickable ${input.trim() ? styles.active : ''}`}
-              onClick={() => handleSend()}
-            >
-              <SendIcon />
-            </button>
+        {/* === CHAT AREA === */}
+        <motion.main 
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
+          className={`${!isSidebarOpen ? 'flex' : 'hidden'} md:flex flex-col flex-1 h-full bg-white/60 backdrop-blur-xl border border-white/60 rounded-3xl shadow-[0_8px_32px_rgba(31,38,135,0.05)] overflow-hidden relative`}
+        >
+          {/* Chat Header */}
+          <header className="h-20 px-6 flex items-center justify-between border-b border-white/30 bg-white/30 backdrop-blur-md z-20">
+             <div className="flex items-center gap-4">
+                <button onClick={() => setIsSidebarOpen(true)} className="md:hidden p-2 -ml-2 hover:bg-white/50 rounded-full">
+                  <ChevronLeft className="w-6 h-6" />
+                </button>
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-blue-500 flex items-center justify-center text-white shadow-md">
+                   <Bot className="w-6 h-6" />
+                </div>
+                <div>
+                   <h3 className="font-bold text-gray-800">WikiNITT Assistant</h3>
+                   <div className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                      <span className="text-xs text-green-600 font-medium">Online</span>
+                   </div>
+                </div>
+             </div>
+          </header>
+
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            <AnimatePresence initial={false}>
+              {messages.map((msg) => (
+                <motion.div 
+                  key={msg.id}
+                  initial={{ opacity: 0, y: 10, scale: 0.9 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
+                >
+                  <div className={`flex max-w-[80%] items-end gap-3 ${msg.sender === "user" ? "flex-row-reverse" : "flex-row"}`}>
+                     <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-sm ${msg.sender === "user" ? "bg-gray-900 text-white" : "bg-gradient-to-br from-indigo-500 to-blue-500 text-white"}`}>
+                        {msg.sender === "user" ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
+                     </div>
+                     <div className={`relative px-5 py-3.5 shadow-sm ${msg.sender === "user" ? "bg-gray-900 text-white rounded-2xl rounded-tr-sm" : "bg-white/80 backdrop-blur-sm border border-white/60 text-gray-800 rounded-2xl rounded-tl-sm"}`}>
+                        <p className="text-sm leading-relaxed">{msg.text}</p>
+                     </div>
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+            <div ref={messagesEndRef} />
           </div>
-          <div className={styles.disclaimer}>
-            Bot generated info. Verify with administration.
+
+          {/* Input */}
+          <div className="p-4 md:p-6 bg-white/40 backdrop-blur-md border-t border-white/30 z-20">
+            <div className="flex items-end gap-3 max-w-4xl mx-auto">
+               <div className="flex-1 bg-white/70 backdrop-blur-xl border border-white/50 rounded-3xl shadow-sm flex items-center px-2 py-2">
+                  <input
+                    type="text"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                    placeholder="Type a message..."
+                    className="flex-1 bg-transparent border-none focus:ring-0 text-sm px-4 py-2"
+                  />
+               </div>
+               <button onClick={handleSend} className="p-3.5 rounded-full bg-indigo-600 text-white shadow-lg hover:scale-105 transition-transform">
+                 <Send className="w-5 h-5" />
+               </button>
+            </div>
           </div>
-        </div>
+        </motion.main>
       </div>
     </div>
   );
 }
-
-// --- Helper Components ---
-const Typewriter = ({ text, onComplete }: { text: string, onComplete: () => void }) => {
-  const [display, setDisplay] = useState('');
-  
-  useEffect(() => {
-    let i = 0;
-    const interval = setInterval(() => {
-      setDisplay(text.substring(0, i + 1));
-      i++;
-      if (i > text.length) {
-        clearInterval(interval);
-        onComplete();
-      }
-    }, 12);
-    return () => clearInterval(interval);
-  }, [text]);
-
-  return (
-    <span>
-      {display}
-      <span className={styles.cursor}></span>
-    </span>
-  );
-};
