@@ -174,8 +174,8 @@ def create_vector_db(documents):
     print(f"Splitting {len(documents)} documents into chunks...")
     
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000,
-        chunk_overlap=200,
+        chunk_size=2000,
+        chunk_overlap=400,
         separators=["\n\n", "\n", " ", ""]
     )
     

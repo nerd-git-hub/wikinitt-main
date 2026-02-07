@@ -37,6 +37,8 @@ interface Message {
   isTyping?: boolean;
   status?: string;
   isStreaming?: boolean;
+  thoughts?: string;
+  isThinking?: boolean;
 }
 
 export default function ChatPage() {
@@ -74,7 +76,8 @@ export default function ChatPage() {
       role: 'bot',
       content: '',
       isTyping: false,
-      isStreaming: true
+      isStreaming: true,
+      thoughts: ''
     }]);
 
     try {
@@ -112,18 +115,33 @@ export default function ChatPage() {
                   ? { ...msg, status: data.content }
                   : msg
               ));
+            } else if (data.type === 'thought_chunk') {
+              setMessages(prev => prev.map(msg =>
+                msg.id === botMsgId
+                  ? {
+                    ...msg,
+                    thoughts: (msg.thoughts || '') + data.content,
+                    isThinking: true
+                  }
+                  : msg
+              ));
             } else if (data.type === 'text_chunk') {
               // Append chunk to content
               setMessages(prev => prev.map(msg =>
                 msg.id === botMsgId
-                  ? { ...msg, content: (msg.content || '') + data.content, status: undefined }
+                  ? {
+                    ...msg,
+                    content: (msg.content || '') + data.content,
+                    status: undefined,
+                    isThinking: false
+                  }
                   : msg
               ));
             } else if (data.type === 'text') {
               // Legacy/Full text replacement (fallback)
               setMessages(prev => prev.map(msg =>
                 msg.id === botMsgId
-                  ? { ...msg, content: data.content, status: undefined } // Clear status on final answer
+                  ? { ...msg, content: data.content, status: undefined, isThinking: false }
                   : msg
               ));
             } else if (data.type === 'error') {
@@ -142,7 +160,7 @@ export default function ChatPage() {
       // Stream finished
       setMessages(prev => prev.map(msg =>
         msg.id === botMsgId
-          ? { ...msg, isStreaming: false }
+          ? { ...msg, isStreaming: false, isThinking: false }
           : msg
       ));
 
@@ -229,6 +247,21 @@ export default function ChatPage() {
                       )}
 
                       <div className={`${styles.bubble} ${msg.role === 'user' ? styles.userBubble : styles.botBubble}`}>
+
+                        {/* Thinking Block */}
+                        {msg.thoughts && (
+                          <div className={styles.thinkingBlock}>
+                            <div className={styles.thinkingHeader}>
+                              <SparkleIcon />
+                              <span>Thinking Process</span>
+                              {msg.isThinking && <span className={styles.pulsingDot}></span>}
+                            </div>
+                            <div className={styles.thinkingContent}>
+                              {msg.thoughts}
+                            </div>
+                          </div>
+                        )}
+
                         {msg.isTyping ? (
                           <Typewriter
                             text={msg.content}
@@ -239,7 +272,7 @@ export default function ChatPage() {
                         ) : (
                           <div className="whitespace-pre-wrap relative">
                             {msg.content}
-                            {msg.isStreaming && (
+                            {msg.isStreaming && !msg.isThinking && (
                               <span className={styles.cursor}></span>
                             )}
                             {msg.status && (

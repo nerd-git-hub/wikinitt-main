@@ -48,6 +48,8 @@ def get_chat_agent():
         """Searches for information about NIT Trichy."""
         print(f"   (🔍 Searching: {query})")
         docs = retriever.invoke(query)
+        if not docs:
+            return "No results found. The database does not contain information matching this query."
         return format_docs(docs)
 
     tool = Tool(
