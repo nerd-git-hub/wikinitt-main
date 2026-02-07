@@ -28,7 +28,6 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
-    "**/*.mts"
-, "src/components/ChatFAB.jsx"  ],
+    "**/*.mts"],
   "exclude": ["node_modules"]
 }
