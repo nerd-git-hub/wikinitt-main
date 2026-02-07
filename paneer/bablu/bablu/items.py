@@ -7,6 +7,7 @@ import scrapy
 
 
 class BabluItem(scrapy.Item):
-    # define the fields for your item here like:
-    # name = scrapy.Field()
-    pass
+    url = scrapy.Field()
+    source_url = scrapy.Field()
+    content_type = scrapy.Field()
+    body = scrapy.Field()

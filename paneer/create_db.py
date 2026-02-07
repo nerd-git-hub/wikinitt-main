@@ -1,14 +1,14 @@
 import os
 import json 
 from tqdm import tqdm
-from langchain_community.document_loaders import PyPDFLoader
+from langchain_community.document_loaders import PyMuPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
 from bs4 import BeautifulSoup
 
-DATA_DIRECTORY = "bablu/nitt_data_scrapy"
+DATA_DIRECTORY = "bablu/nitt_pdfs"
 DB_DIRECTORY = "nitt_vector_db"
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 
@@ -49,28 +49,22 @@ def load_documents(directory):
                 with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
                     soup = BeautifulSoup(f.read(), "html.parser")
                 
-                # Remove script and style elements
                 for script in soup(["script", "style", "header", "footer", "nav", "form", "iframe", "noscript", "svg"]):
                     script.extract()
                 
-                # Remove specific classes or ids known to be junk (common in scraped sites)
                 for div in soup.find_all("div", class_=["navbar", "menu", "sidebar", "footer", "header", "breadcrumb"]):
                     div.extract()
 
                 text = soup.get_text(separator="\n")
                 
-                # Clean up text
                 clean_text = "\n".join([line.strip() for line in text.splitlines() if line.strip()])
                 
-                # Specific filter for common junk lines in this dataset
                 junk_phrases = [
                     "Other Links", "Tenders and Notices", "Job Opportunities", "RTI", "Alumni", "Sitemap", "Contact Us",
                     "National Institute of Technology", "Tiruchirappalli", "Tamil Nadu", "India"
                 ]
                 
-                # If a large chunk of the text is just these phrases, skip or clean
                 if any(phrase in clean_text[:200] for phrase in junk_phrases) and len(clean_text) < 500:
-                    # Likely a navigation fragment
                     continue
 
                 if len(clean_text) < 100: 
@@ -88,8 +82,7 @@ def load_documents(directory):
 
             elif filename.endswith(".pdf"):
                 try:
-                    loader = PyPDFLoader(file_path)
-                    pdf_docs = loader.load()
+                    pdf_docs = extract_text_from_pdf_with_ocr(file_path)
                     
                     for doc in pdf_docs:
                         doc.metadata["source"] = filename
@@ -97,12 +90,81 @@ def load_documents(directory):
                         doc.metadata["source_url"] = source_url
                         documents.append(doc)
                 except Exception as e:
+                    print(f"Error processing PDF {filename}: {e}")
                     continue
 
         except Exception as e:
             continue
             
     return documents
+
+def extract_text_from_pdf_with_ocr(file_path):
+    """
+    Extracts text from a PDF file, using OCR if necessary.
+    """
+    text = ""
+    pages = []
+    MAX_OCR_PAGES = 10 
+
+    try:
+        loader = PyMuPDFLoader(file_path)
+        pages = loader.load()
+        text = "\n".join([p.page_content for p in pages])
+        
+        if len(text.strip()) > 50 * len(pages): 
+             return pages
+
+        print(f"\n   ⚠️  Low text detected in {os.path.basename(file_path)} ({len(pages)} pages). Falling back to OCR...")
+        
+    except Exception as e:
+        print(f"\n   ⚠️  Standard PDF load failed: {e}. attempting OCR blindly...")
+        pages = [] 
+
+    # 2. OCR Fallback
+    try:
+        from pdf2image import convert_from_path, pdfinfo_from_path
+        import pytesseract
+        
+        if not pages:
+            try:
+                info = pdfinfo_from_path(file_path)
+                page_count = info["Pages"]
+            except:
+                page_count = 5 
+        else:
+            page_count = len(pages)
+
+        if page_count > MAX_OCR_PAGES:
+            print(f"   ❌ Skipping OCR: File too large ({page_count} pages). Limit is {MAX_OCR_PAGES}.")
+            return []
+
+        print(f"   Converting PDF to images...", end="\r")
+        images = convert_from_path(file_path)
+        ocr_docs = []
+        
+        print(f"   Running OCR on {len(images)} pages: ", end="", flush=True)
+        
+        for i, image in enumerate(images):
+            print(".", end="", flush=True) 
+            
+            page_text = pytesseract.image_to_string(image)
+            if page_text.strip():
+                doc = Document(
+                    page_content=page_text,
+                    metadata={"source": file_path, "page": i}
+                )
+                ocr_docs.append(doc)
+                
+        print(" Done!")
+        return ocr_docs
+            
+    except ImportError:
+        print("\n   ❌ OCR dependencies missing (install pdf2image & pytesseract).")
+        return []
+    except Exception as e:
+        print(f"\n   ❌ OCR failed: {e}")
+        return []
+
 
 def create_vector_db(documents):
     if not documents:

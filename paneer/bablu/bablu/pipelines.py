@@ -5,7 +5,7 @@ import hashlib
 
 class BabluPipeline:
     def open_spider(self, spider):
-        self.output_dir = "nitt_data_scrapy"
+        self.output_dir = getattr(spider, 'custom_output_dir', "nitt_data_scrapy")
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
 
@@ -39,6 +39,7 @@ class BabluPipeline:
         meta_filepath = os.path.join(self.output_dir, meta_filename)
         metadata = {
             "url": url,
+            "source_url": item.get('source_url', ''),
             "filename": data_filename,
             "content_type": content_type
         }
