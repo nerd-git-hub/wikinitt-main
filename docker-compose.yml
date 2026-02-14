@@ -6,8 +6,7 @@ services:
     container_name: gravy
     ports:
       - "8080:8080"
-    volumes:
-      - ./gravy:/app
+
     environment:
       - MEILI_HOST=http://meilisearch:7700
       - MEILI_MASTER_KEY=${MEILI_MASTER_KEY}
