@@ -26,12 +26,10 @@ services:
     environment:
       - MEILI_MASTER_KEY=${MEILI_MASTER_KEY}
       - MEILI_ENV=production
-      - MEILI_IMPORT_DUMP=${MEILI_IMPORT_DUMP}
     ports:
       - "7700:7700"
     volumes:
       - meili-data:/meili_data
-      - ./dumps:/meili_data/dumps
     restart: unless-stopped
     networks:
       - wikinitt-network
@@ -77,7 +75,6 @@ services:
       - redis
     networks:
       - wikinitt-network
-    # command: ["tail", "-f", "/dev/null"] 
 
   postgres:
     image: postgres:15
