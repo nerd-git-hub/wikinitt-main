@@ -26,8 +26,13 @@ cycler==0.12.1
 dataclasses-json==0.6.7
 defusedxml==0.7.1
 distro==1.9.0
+dnspython==2.8.0
 durationpy==0.10
+email-validator==2.3.0
 fastapi==0.128.3
+fastapi-cli==0.0.21
+fastapi-cloud-cli==0.12.0
+fastar==0.8.0
 filelock==3.20.3
 filetype==1.2.0
 flatbuffers==25.12.19
@@ -141,6 +146,7 @@ pyasn1_modules==0.4.2
 pybase64==1.4.3
 pycparser==3.0
 pydantic==2.12.5
+pydantic-extra-types==2.11.0
 pydantic-settings==2.12.0
 pydantic_core==2.41.5
 PyDispatcher==2.0.7
@@ -168,6 +174,8 @@ requests-file==3.0.1
 requests-oauthlib==2.0.0
 requests-toolbelt==1.0.0
 rich==14.3.2
+rich-toolkit==0.19.4
+rignore==0.7.6
 rpds-py==0.30.0
 rsa==4.9.1
 safetensors==0.7.0
@@ -176,6 +184,7 @@ scipy==1.17.0
 Scrapy==2.14.1
 scrapy-redis==0.9.1
 sentence-transformers==5.2.2
+sentry-sdk==2.52.0
 service-identity==24.2.0
 shellingham==1.5.4
 six==1.17.0
