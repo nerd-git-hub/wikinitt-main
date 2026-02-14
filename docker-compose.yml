@@ -16,7 +16,6 @@ services:
       - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
       - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
       - JWT_SECRET=${JWT_SECRET}
-      - MEILI_IMPORT_DUMP=${MEILI_IMPORT_DUMP}
     depends_on:
       - meilisearch
     networks:
@@ -27,6 +26,7 @@ services:
     environment:
       - MEILI_MASTER_KEY=${MEILI_MASTER_KEY}
       - MEILI_ENV=production
+      - MEILI_IMPORT_DUMP=${MEILI_IMPORT_DUMP}
     ports:
       - "7700:7700"
     volumes:
@@ -94,7 +94,7 @@ services:
       - wikinitt-network
 
   chroma:
-    image: chromadb/chroma:latest
+    image: chromadb/chroma:1.5.0
     restart: unless-stopped
     environment:
       - IS_PERSISTENT=TRUE
