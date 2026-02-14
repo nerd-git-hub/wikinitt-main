@@ -20,6 +20,7 @@ import (
 	"github.com/pranava-mohan/wikinitt/gravy/internal/categories"
 	"github.com/pranava-mohan/wikinitt/gravy/internal/community"
 	"github.com/pranava-mohan/wikinitt/gravy/internal/db"
+	"github.com/pranava-mohan/wikinitt/gravy/internal/maplocation"
 	"github.com/pranava-mohan/wikinitt/gravy/internal/ratelimit"
 	"github.com/pranava-mohan/wikinitt/gravy/internal/search"
 	"github.com/pranava-mohan/wikinitt/gravy/internal/uploader"
@@ -66,6 +67,7 @@ func main() {
 	articleRepo := articles.NewRepository(database, searchClient)
 	categoryRepo := categories.NewRepository(database)
 	communityRepo := community.NewRepository(database, searchClient)
+	mapLocationRepo := maplocation.NewRepository(database)
 
 	ctx := context.Background()
 	if err := userRepo.EnsureIndexes(ctx); err != nil {
@@ -316,12 +318,13 @@ func main() {
 
 	c := graph.Config{
 		Resolvers: &graph.Resolver{
-			UserRepo:      userRepo,
-			ArticleRepo:   articleRepo,
-			CategoryRepo:  categoryRepo,
-			CommunityRepo: communityRepo,
-			Uploader:      uploaderService,
-			SearchClient:  searchClient,
+			UserRepo:        userRepo,
+			ArticleRepo:     articleRepo,
+			CategoryRepo:    categoryRepo,
+			CommunityRepo:   communityRepo,
+			MapLocationRepo: mapLocationRepo,
+			Uploader:        uploaderService,
+			SearchClient:    searchClient,
 		},
 	}
 	c.Directives.Auth = func(ctx context.Context, obj interface{}, next graphql.Resolver, requires *model.Role) (interface{}, error) {

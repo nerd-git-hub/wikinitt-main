@@ -1,0 +1,35 @@
+type MapLocation {
+  id: ID!
+  name: String!
+  type: String!
+  coordinates: [Float!]!
+  description: String
+  menu: [MenuItem!]
+}
+
+type MenuItem {
+  item: String!
+  price: String!
+}
+
+input MenuItemInput {
+  item: String!
+  price: String!
+}
+
+extend type Query {
+  mapLocations: [MapLocation!]!
+}
+
+extend type Mutation {
+  addMapLocation(input: MapLocationInput!): MapLocation! @auth(requires: ADMIN)
+  deleteMapLocation(id: ID!): Boolean! @auth(requires: ADMIN)
+}
+
+input MapLocationInput {
+  name: String!
+  type: String!
+  coordinates: [Float!]!
+  description: String
+  menu: [MenuItemInput!]
+}

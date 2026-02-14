@@ -3,6 +3,7 @@
 import { WikiMapLocation } from '@/data/mapData';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, MapPin, Coffee, Utensils } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
 interface MapSidebarProps {
   selectedLocation: WikiMapLocation | null;
@@ -10,18 +11,37 @@ interface MapSidebarProps {
 }
 
 export default function MapSidebar({ selectedLocation, onClose }: MapSidebarProps) {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768); // md breakpoint
+    };
+    
+    checkMobile(); // Check on mount
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  const variants = {
+    hidden: isMobile ? { y: '100%', x: 0 } : { x: '100%', y: 0 },
+    visible: { x: 0, y: 0 },
+    exit: isMobile ? { y: '100%', x: 0 } : { x: '100%', y: 0 }
+  };
+
   return (
-
-
-
     <AnimatePresence>
       {selectedLocation && (
         <motion.div
-          initial={{ x: '100%' }}
-          animate={{ x: 0 }}
-          exit={{ x: '100%' }}
+          initial="hidden"
+          animate="visible"
+          exit="exit"
+          variants={variants}
           transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-          className="fixed top-0 right-0 h-full w-full sm:w-96 bg-white dark:bg-zinc-900 shadow-2xl z-[1000] border-l border-zinc-200 dark:border-zinc-800 flex flex-col"
+          className="fixed z-[1000] bg-white dark:bg-zinc-900 shadow-2xl flex flex-col 
+            bottom-0 left-0 right-0 w-full h-[75vh] rounded-t-3xl border-t border-zinc-200 dark:border-zinc-800
+            md:top-0 md:right-0 md:left-auto md:bottom-auto md:h-full md:w-96 md:rounded-none md:border-l md:border-t-0"
         >
           {/* Header */}
           <div className="p-6 border-b border-zinc-200 dark:border-zinc-800 flex items-start justify-between bg-zinc-50 dark:bg-zinc-900/50">

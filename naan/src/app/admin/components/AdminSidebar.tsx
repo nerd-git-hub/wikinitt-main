@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import LogoIcon from "@/components/logo.svg";
-import { Users, BookOpen, LogOut, ChevronRight } from "lucide-react";
+import { Users, BookOpen, LogOut, ChevronRight, MapPin } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 
 export default function AdminSidebar() {
@@ -34,6 +34,7 @@ export default function AdminSidebar() {
   const navItems = [
     { name: "Users", href: "/admin/users", icon: Users },
     { name: "Articles", href: "/admin/articles", icon: BookOpen },
+    { name: "Maps", href: "/admin/map", icon: MapPin },
   ];
 
   return (

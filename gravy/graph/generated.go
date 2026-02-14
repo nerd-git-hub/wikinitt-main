@@ -123,6 +123,20 @@ type ComplexityRoot struct {
 		Type              func(childComplexity int) int
 	}
 
+	MapLocation struct {
+		Coordinates func(childComplexity int) int
+		Description func(childComplexity int) int
+		ID          func(childComplexity int) int
+		Menu        func(childComplexity int) int
+		Name        func(childComplexity int) int
+		Type        func(childComplexity int) int
+	}
+
+	MenuItem struct {
+		Item  func(childComplexity int) int
+		Price func(childComplexity int) int
+	}
+
 	Message struct {
 		Channel   func(childComplexity int) int
 		Content   func(childComplexity int) int
@@ -133,6 +147,7 @@ type ComplexityRoot struct {
 
 	Mutation struct {
 		AcceptJoinRequest   func(childComplexity int, groupID string, userID string) int
+		AddMapLocation      func(childComplexity int, input model.MapLocationInput) int
 		BlockUser           func(childComplexity int, id string) int
 		CompleteSetup       func(childComplexity int, input model.CompleteSetupInput) int
 		CreateArticle       func(childComplexity int, input model.NewArticle) int
@@ -145,6 +160,7 @@ type ComplexityRoot struct {
 		DeleteCategory      func(childComplexity int, id string) int
 		DeleteComment       func(childComplexity int, commentID string) int
 		DeleteGroup         func(childComplexity int, groupID string) int
+		DeleteMapLocation   func(childComplexity int, id string) int
 		DeletePost          func(childComplexity int, postID string) int
 		Empty               func(childComplexity int) int
 		GenerateGroupInvite func(childComplexity int, groupID string) int
@@ -206,6 +222,7 @@ type ComplexityRoot struct {
 		Discussion         func(childComplexity int, groupID string) int
 		Group              func(childComplexity int, slug string) int
 		GroupByInviteToken func(childComplexity int, token string) int
+		MapLocations       func(childComplexity int) int
 		Me                 func(childComplexity int) int
 		MyGroups           func(childComplexity int) int
 		Ping               func(childComplexity int) int
@@ -288,6 +305,8 @@ type MutationResolver interface {
 	CreateChannel(ctx context.Context, input model.NewChannel) (*model.Channel, error)
 	SendMessage(ctx context.Context, input model.NewMessage) (*model.Message, error)
 	DeleteGroup(ctx context.Context, groupID string) (bool, error)
+	AddMapLocation(ctx context.Context, input model.MapLocationInput) (*model.MapLocation, error)
+	DeleteMapLocation(ctx context.Context, id string) (bool, error)
 	SignIn(ctx context.Context, input model.NewUser) (string, error)
 	Login(ctx context.Context, input model.LoginInput) (string, error)
 	CompleteSetup(ctx context.Context, input model.CompleteSetupInput) (string, error)
@@ -321,6 +340,7 @@ type QueryResolver interface {
 	PublicPosts(ctx context.Context, limit *int32, offset *int32) ([]*model.Post, error)
 	Discussion(ctx context.Context, groupID string) (*model.Discussion, error)
 	Channel(ctx context.Context, id string) (*model.Channel, error)
+	MapLocations(ctx context.Context) ([]*model.MapLocation, error)
 	SearchArticles(ctx context.Context, query string, limit *int32, offset *int32) ([]*model.Article, error)
 	SearchPosts(ctx context.Context, query string, limit *int32, offset *int32) ([]*model.Post, error)
 	SearchCommunity(ctx context.Context, query string, limit *int32, offset *int32) ([]model.CommunityResult, error)
@@ -673,6 +693,56 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Group.Type(childComplexity), true
 
+	case "MapLocation.coordinates":
+		if e.complexity.MapLocation.Coordinates == nil {
+			break
+		}
+
+		return e.complexity.MapLocation.Coordinates(childComplexity), true
+	case "MapLocation.description":
+		if e.complexity.MapLocation.Description == nil {
+			break
+		}
+
+		return e.complexity.MapLocation.Description(childComplexity), true
+	case "MapLocation.id":
+		if e.complexity.MapLocation.ID == nil {
+			break
+		}
+
+		return e.complexity.MapLocation.ID(childComplexity), true
+	case "MapLocation.menu":
+		if e.complexity.MapLocation.Menu == nil {
+			break
+		}
+
+		return e.complexity.MapLocation.Menu(childComplexity), true
+	case "MapLocation.name":
+		if e.complexity.MapLocation.Name == nil {
+			break
+		}
+
+		return e.complexity.MapLocation.Name(childComplexity), true
+	case "MapLocation.type":
+		if e.complexity.MapLocation.Type == nil {
+			break
+		}
+
+		return e.complexity.MapLocation.Type(childComplexity), true
+
+	case "MenuItem.item":
+		if e.complexity.MenuItem.Item == nil {
+			break
+		}
+
+		return e.complexity.MenuItem.Item(childComplexity), true
+	case "MenuItem.price":
+		if e.complexity.MenuItem.Price == nil {
+			break
+		}
+
+		return e.complexity.MenuItem.Price(childComplexity), true
+
 	case "Message.channel":
 		if e.complexity.Message.Channel == nil {
 			break
@@ -715,6 +785,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.AcceptJoinRequest(childComplexity, args["groupId"].(string), args["userId"].(string)), true
+	case "Mutation.addMapLocation":
+		if e.complexity.Mutation.AddMapLocation == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_addMapLocation_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.AddMapLocation(childComplexity, args["input"].(model.MapLocationInput)), true
 	case "Mutation.blockUser":
 		if e.complexity.Mutation.BlockUser == nil {
 			break
@@ -847,6 +928,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.DeleteGroup(childComplexity, args["groupId"].(string)), true
+	case "Mutation.deleteMapLocation":
+		if e.complexity.Mutation.DeleteMapLocation == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deleteMapLocation_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.DeleteMapLocation(childComplexity, args["id"].(string)), true
 	case "Mutation.deletePost":
 		if e.complexity.Mutation.DeletePost == nil {
 			break
@@ -1327,6 +1419,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.GroupByInviteToken(childComplexity, args["token"].(string)), true
+	case "Query.mapLocations":
+		if e.complexity.Query.MapLocations == nil {
+			break
+		}
+
+		return e.complexity.Query.MapLocations(childComplexity), true
 	case "Query.me":
 		if e.complexity.Query.Me == nil {
 			break
@@ -1535,6 +1633,8 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	inputUnmarshalMap := graphql.BuildUnmarshalerMap(
 		ec.unmarshalInputCompleteSetupInput,
 		ec.unmarshalInputLoginInput,
+		ec.unmarshalInputMapLocationInput,
+		ec.unmarshalInputMenuItemInput,
 		ec.unmarshalInputNewArticle,
 		ec.unmarshalInputNewChannel,
 		ec.unmarshalInputNewComment,
@@ -1657,7 +1757,7 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 	return introspection.WrapTypeFromDef(ec.Schema(), ec.Schema().Types[name]), nil
 }
 
-//go:embed "article.graphqls" "category.graphqls" "community.graphqls" "discussion.graphqls" "schema.graphqls" "search.graphqls" "user.graphqls"
+//go:embed "article.graphqls" "category.graphqls" "community.graphqls" "discussion.graphqls" "map.graphqls" "schema.graphqls" "search.graphqls" "user.graphqls"
 var sourcesFS embed.FS
 
 func sourceData(filename string) string {
@@ -1673,6 +1773,7 @@ var sources = []*ast.Source{
 	{Name: "category.graphqls", Input: sourceData("category.graphqls"), BuiltIn: false},
 	{Name: "community.graphqls", Input: sourceData("community.graphqls"), BuiltIn: false},
 	{Name: "discussion.graphqls", Input: sourceData("discussion.graphqls"), BuiltIn: false},
+	{Name: "map.graphqls", Input: sourceData("map.graphqls"), BuiltIn: false},
 	{Name: "schema.graphqls", Input: sourceData("schema.graphqls"), BuiltIn: false},
 	{Name: "search.graphqls", Input: sourceData("search.graphqls"), BuiltIn: false},
 	{Name: "user.graphqls", Input: sourceData("user.graphqls"), BuiltIn: false},
@@ -1755,6 +1856,17 @@ func (ec *executionContext) field_Mutation_acceptJoinRequest_args(ctx context.Co
 		return nil, err
 	}
 	args["userId"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_addMapLocation_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNMapLocationInput2githubᚗcomᚋpranavaᚑmohanᚋwikinittᚋgravyᚋgraphᚋmodelᚐMapLocationInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
 	return args, nil
 }
 
@@ -1887,6 +1999,17 @@ func (ec *executionContext) field_Mutation_deleteGroup_args(ctx context.Context,
 		return nil, err
 	}
 	args["groupId"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_deleteMapLocation_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
 	return args, nil
 }
 
@@ -4312,6 +4435,244 @@ func (ec *executionContext) fieldContext_Group_hasPendingRequest(_ context.Conte
 	return fc, nil
 }
 
+func (ec *executionContext) _MapLocation_id(ctx context.Context, field graphql.CollectedField, obj *model.MapLocation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MapLocation_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_MapLocation_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MapLocation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MapLocation_name(ctx context.Context, field graphql.CollectedField, obj *model.MapLocation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MapLocation_name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_MapLocation_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MapLocation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MapLocation_type(ctx context.Context, field graphql.CollectedField, obj *model.MapLocation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MapLocation_type,
+		func(ctx context.Context) (any, error) {
+			return obj.Type, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_MapLocation_type(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MapLocation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MapLocation_coordinates(ctx context.Context, field graphql.CollectedField, obj *model.MapLocation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MapLocation_coordinates,
+		func(ctx context.Context) (any, error) {
+			return obj.Coordinates, nil
+		},
+		nil,
+		ec.marshalNFloat2ᚕfloat64ᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_MapLocation_coordinates(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MapLocation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MapLocation_description(ctx context.Context, field graphql.CollectedField, obj *model.MapLocation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MapLocation_description,
+		func(ctx context.Context) (any, error) {
+			return obj.Description, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_MapLocation_description(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MapLocation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MapLocation_menu(ctx context.Context, field graphql.CollectedField, obj *model.MapLocation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MapLocation_menu,
+		func(ctx context.Context) (any, error) {
+			return obj.Menu, nil
+		},
+		nil,
+		ec.marshalOMenuItem2ᚕᚖgithubᚗcomᚋpranavaᚑmohanᚋwikinittᚋgravyᚋgraphᚋmodelᚐMenuItemᚄ,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_MapLocation_menu(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MapLocation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "item":
+				return ec.fieldContext_MenuItem_item(ctx, field)
+			case "price":
+				return ec.fieldContext_MenuItem_price(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type MenuItem", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MenuItem_item(ctx context.Context, field graphql.CollectedField, obj *model.MenuItem) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MenuItem_item,
+		func(ctx context.Context) (any, error) {
+			return obj.Item, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_MenuItem_item(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MenuItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MenuItem_price(ctx context.Context, field graphql.CollectedField, obj *model.MenuItem) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MenuItem_price,
+		func(ctx context.Context) (any, error) {
+			return obj.Price, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_MenuItem_price(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MenuItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Message_id(ctx context.Context, field graphql.CollectedField, obj *model.Message) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -6346,6 +6707,138 @@ func (ec *executionContext) fieldContext_Mutation_deleteGroup(ctx context.Contex
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_deleteGroup_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_addMapLocation(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_addMapLocation,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().AddMapLocation(ctx, fc.Args["input"].(model.MapLocationInput))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				requires, err := ec.unmarshalORole2ᚖgithubᚗcomᚋpranavaᚑmohanᚋwikinittᚋgravyᚋgraphᚋmodelᚐRole(ctx, "ADMIN")
+				if err != nil {
+					var zeroVal *model.MapLocation
+					return zeroVal, err
+				}
+				if ec.directives.Auth == nil {
+					var zeroVal *model.MapLocation
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.directives.Auth(ctx, nil, directive0, requires)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNMapLocation2ᚖgithubᚗcomᚋpranavaᚑmohanᚋwikinittᚋgravyᚋgraphᚋmodelᚐMapLocation,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_addMapLocation(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_MapLocation_id(ctx, field)
+			case "name":
+				return ec.fieldContext_MapLocation_name(ctx, field)
+			case "type":
+				return ec.fieldContext_MapLocation_type(ctx, field)
+			case "coordinates":
+				return ec.fieldContext_MapLocation_coordinates(ctx, field)
+			case "description":
+				return ec.fieldContext_MapLocation_description(ctx, field)
+			case "menu":
+				return ec.fieldContext_MapLocation_menu(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type MapLocation", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_addMapLocation_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_deleteMapLocation(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_deleteMapLocation,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().DeleteMapLocation(ctx, fc.Args["id"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				requires, err := ec.unmarshalORole2ᚖgithubᚗcomᚋpranavaᚑmohanᚋwikinittᚋgravyᚋgraphᚋmodelᚐRole(ctx, "ADMIN")
+				if err != nil {
+					var zeroVal bool
+					return zeroVal, err
+				}
+				if ec.directives.Auth == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.directives.Auth(ctx, nil, directive0, requires)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_deleteMapLocation(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_deleteMapLocation_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -8635,6 +9128,49 @@ func (ec *executionContext) fieldContext_Query_channel(ctx context.Context, fiel
 	if fc.Args, err = ec.field_Query_channel_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_mapLocations(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_mapLocations,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Query().MapLocations(ctx)
+		},
+		nil,
+		ec.marshalNMapLocation2ᚕᚖgithubᚗcomᚋpranavaᚑmohanᚋwikinittᚋgravyᚋgraphᚋmodelᚐMapLocationᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_mapLocations(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_MapLocation_id(ctx, field)
+			case "name":
+				return ec.fieldContext_MapLocation_name(ctx, field)
+			case "type":
+				return ec.fieldContext_MapLocation_type(ctx, field)
+			case "coordinates":
+				return ec.fieldContext_MapLocation_coordinates(ctx, field)
+			case "description":
+				return ec.fieldContext_MapLocation_description(ctx, field)
+			case "menu":
+				return ec.fieldContext_MapLocation_menu(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type MapLocation", field.Name)
+		},
 	}
 	return fc, nil
 }
@@ -11081,6 +11617,95 @@ func (ec *executionContext) unmarshalInputLoginInput(ctx context.Context, obj an
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputMapLocationInput(ctx context.Context, obj any) (model.MapLocationInput, error) {
+	var it model.MapLocationInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"name", "type", "coordinates", "description", "menu"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Name = data
+		case "type":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("type"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Type = data
+		case "coordinates":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("coordinates"))
+			data, err := ec.unmarshalNFloat2ᚕfloat64ᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Coordinates = data
+		case "description":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("description"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Description = data
+		case "menu":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("menu"))
+			data, err := ec.unmarshalOMenuItemInput2ᚕᚖgithubᚗcomᚋpranavaᚑmohanᚋwikinittᚋgravyᚋgraphᚋmodelᚐMenuItemInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Menu = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputMenuItemInput(ctx context.Context, obj any) (model.MenuItemInput, error) {
+	var it model.MenuItemInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"item", "price"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "item":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("item"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Item = data
+		case "price":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("price"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Price = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputNewArticle(ctx context.Context, obj any) (model.NewArticle, error) {
 	var it model.NewArticle
 	asMap := map[string]any{}
@@ -12290,6 +12915,108 @@ func (ec *executionContext) _Group(ctx context.Context, sel ast.SelectionSet, ob
 	return out
 }
 
+var mapLocationImplementors = []string{"MapLocation"}
+
+func (ec *executionContext) _MapLocation(ctx context.Context, sel ast.SelectionSet, obj *model.MapLocation) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, mapLocationImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("MapLocation")
+		case "id":
+			out.Values[i] = ec._MapLocation_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "name":
+			out.Values[i] = ec._MapLocation_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "type":
+			out.Values[i] = ec._MapLocation_type(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "coordinates":
+			out.Values[i] = ec._MapLocation_coordinates(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "description":
+			out.Values[i] = ec._MapLocation_description(ctx, field, obj)
+		case "menu":
+			out.Values[i] = ec._MapLocation_menu(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var menuItemImplementors = []string{"MenuItem"}
+
+func (ec *executionContext) _MenuItem(ctx context.Context, sel ast.SelectionSet, obj *model.MenuItem) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, menuItemImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("MenuItem")
+		case "item":
+			out.Values[i] = ec._MenuItem_item(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "price":
+			out.Values[i] = ec._MenuItem_price(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var messageImplementors = []string{"Message"}
 
 func (ec *executionContext) _Message(ctx context.Context, sel ast.SelectionSet, obj *model.Message) graphql.Marshaler {
@@ -12550,6 +13277,20 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "deleteGroup":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_deleteGroup(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "addMapLocation":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_addMapLocation(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deleteMapLocation":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deleteMapLocation(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -13241,6 +13982,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_channel(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "mapLocations":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_mapLocations(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
 				return res
 			}
 
@@ -14211,6 +14974,52 @@ func (ec *executionContext) marshalNDiscussion2ᚖgithubᚗcomᚋpranavaᚑmohan
 	return ec._Discussion(ctx, sel, v)
 }
 
+func (ec *executionContext) unmarshalNFloat2float64(ctx context.Context, v any) (float64, error) {
+	res, err := graphql.UnmarshalFloatContext(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNFloat2float64(ctx context.Context, sel ast.SelectionSet, v float64) graphql.Marshaler {
+	_ = sel
+	res := graphql.MarshalFloatContext(v)
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+	}
+	return graphql.WrapContextMarshaler(ctx, res)
+}
+
+func (ec *executionContext) unmarshalNFloat2ᚕfloat64ᚄ(ctx context.Context, v any) ([]float64, error) {
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]float64, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNFloat2float64(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalNFloat2ᚕfloat64ᚄ(ctx context.Context, sel ast.SelectionSet, v []float64) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalNFloat2float64(ctx, sel, v[i])
+	}
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
 func (ec *executionContext) marshalNGroup2githubᚗcomᚋpranavaᚑmohanᚋwikinittᚋgravyᚋgraphᚋmodelᚐGroup(ctx context.Context, sel ast.SelectionSet, v model.Group) graphql.Marshaler {
 	return ec._Group(ctx, sel, &v)
 }
@@ -14314,6 +15123,84 @@ func (ec *executionContext) marshalNInt2int32(ctx context.Context, sel ast.Selec
 func (ec *executionContext) unmarshalNLoginInput2githubᚗcomᚋpranavaᚑmohanᚋwikinittᚋgravyᚋgraphᚋmodelᚐLoginInput(ctx context.Context, v any) (model.LoginInput, error) {
 	res, err := ec.unmarshalInputLoginInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNMapLocation2githubᚗcomᚋpranavaᚑmohanᚋwikinittᚋgravyᚋgraphᚋmodelᚐMapLocation(ctx context.Context, sel ast.SelectionSet, v model.MapLocation) graphql.Marshaler {
+	return ec._MapLocation(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNMapLocation2ᚕᚖgithubᚗcomᚋpranavaᚑmohanᚋwikinittᚋgravyᚋgraphᚋmodelᚐMapLocationᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.MapLocation) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNMapLocation2ᚖgithubᚗcomᚋpranavaᚑmohanᚋwikinittᚋgravyᚋgraphᚋmodelᚐMapLocation(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNMapLocation2ᚖgithubᚗcomᚋpranavaᚑmohanᚋwikinittᚋgravyᚋgraphᚋmodelᚐMapLocation(ctx context.Context, sel ast.SelectionSet, v *model.MapLocation) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._MapLocation(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNMapLocationInput2githubᚗcomᚋpranavaᚑmohanᚋwikinittᚋgravyᚋgraphᚋmodelᚐMapLocationInput(ctx context.Context, v any) (model.MapLocationInput, error) {
+	res, err := ec.unmarshalInputMapLocationInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNMenuItem2ᚖgithubᚗcomᚋpranavaᚑmohanᚋwikinittᚋgravyᚋgraphᚋmodelᚐMenuItem(ctx context.Context, sel ast.SelectionSet, v *model.MenuItem) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._MenuItem(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNMenuItemInput2ᚖgithubᚗcomᚋpranavaᚑmohanᚋwikinittᚋgravyᚋgraphᚋmodelᚐMenuItemInput(ctx context.Context, v any) (*model.MenuItemInput, error) {
+	res, err := ec.unmarshalInputMenuItemInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalNMessage2githubᚗcomᚋpranavaᚑmohanᚋwikinittᚋgravyᚋgraphᚋmodelᚐMessage(ctx context.Context, sel ast.SelectionSet, v model.Message) graphql.Marshaler {
@@ -14943,6 +15830,71 @@ func (ec *executionContext) marshalOInt2ᚖint32(ctx context.Context, sel ast.Se
 	_ = ctx
 	res := graphql.MarshalInt32(*v)
 	return res
+}
+
+func (ec *executionContext) marshalOMenuItem2ᚕᚖgithubᚗcomᚋpranavaᚑmohanᚋwikinittᚋgravyᚋgraphᚋmodelᚐMenuItemᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.MenuItem) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNMenuItem2ᚖgithubᚗcomᚋpranavaᚑmohanᚋwikinittᚋgravyᚋgraphᚋmodelᚐMenuItem(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) unmarshalOMenuItemInput2ᚕᚖgithubᚗcomᚋpranavaᚑmohanᚋwikinittᚋgravyᚋgraphᚋmodelᚐMenuItemInputᚄ(ctx context.Context, v any) ([]*model.MenuItemInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]*model.MenuItemInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNMenuItemInput2ᚖgithubᚗcomᚋpranavaᚑmohanᚋwikinittᚋgravyᚋgraphᚋmodelᚐMenuItemInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
 }
 
 func (ec *executionContext) marshalOPost2ᚖgithubᚗcomᚋpranavaᚑmohanᚋwikinittᚋgravyᚋgraphᚋmodelᚐPost(ctx context.Context, sel ast.SelectionSet, v *model.Post) graphql.Marshaler {

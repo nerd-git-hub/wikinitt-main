@@ -95,6 +95,33 @@ type LoginInput struct {
 	Password string `json:"password"`
 }
 
+type MapLocation struct {
+	ID          string      `json:"id"`
+	Name        string      `json:"name"`
+	Type        string      `json:"type"`
+	Coordinates []float64   `json:"coordinates"`
+	Description *string     `json:"description,omitempty"`
+	Menu        []*MenuItem `json:"menu,omitempty"`
+}
+
+type MapLocationInput struct {
+	Name        string           `json:"name"`
+	Type        string           `json:"type"`
+	Coordinates []float64        `json:"coordinates"`
+	Description *string          `json:"description,omitempty"`
+	Menu        []*MenuItemInput `json:"menu,omitempty"`
+}
+
+type MenuItem struct {
+	Item  string `json:"item"`
+	Price string `json:"price"`
+}
+
+type MenuItemInput struct {
+	Item  string `json:"item"`
+	Price string `json:"price"`
+}
+
 type Message struct {
 	ID        string      `json:"id"`
 	Content   string      `json:"content"`

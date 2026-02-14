@@ -29,7 +29,7 @@ func (r *mutationResolver) CreateArticle(ctx context.Context, input model.NewArt
 	autoLinkedContent, err := articles.AutoLinkContent(ctx, sanitizedContent, r.ArticleRepo, "")
 	if err != nil {
 		return nil, err
-	} 
+	}
 
 	article := articles.Article{
 		Title:     input.Title,
@@ -63,12 +63,11 @@ func (r *mutationResolver) CreateArticle(ctx context.Context, input model.NewArt
 
 // UpdateArticle is the resolver for the updateArticle field.
 func (r *mutationResolver) UpdateArticle(ctx context.Context, input model.UpdateArticle) (*model.Article, error) {
-	
 	existing, err := r.ArticleRepo.GetByID(ctx, input.ID)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	updates := make(map[string]interface{})
 	if input.Title != nil {
 		updates["title"] = *input.Title

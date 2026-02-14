@@ -2,14 +2,18 @@
 
 import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
-import { WikiMapLocation, mapLocations } from '@/data/mapData';
+import { useQuery } from '@tanstack/react-query';
+import { request } from 'graphql-request';
+import { GET_MAP_LOCATIONS } from '@/queries/map';
+import { WikiMapLocation, LocationType } from '@/data/mapData';
 import MapSidebar from './MapSidebar';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.css';
 import 'leaflet-defaulticon-compatibility';
 import L from 'leaflet';
-import { Utensils, Building2 } from 'lucide-react';
-import { renderToString } from 'react-dom/server';
+import { Utensils, Building2, BookUser, Home, GraduationCap } from 'lucide-react';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 
 // Dynamically import MapContainer and other Leaflet components to avoid SSR issues
 const MapContainer = dynamic(
@@ -37,15 +41,49 @@ export default function MapView() {
     setIsMounted(true);
   }, []);
 
+  const { data: mapData, isLoading } = useQuery({
+    queryKey: ['mapLocations'],
+    queryFn: async () => {
+      const endpoint = process.env.NEXT_PUBLIC_GRAPHQL_API_URL || 'http://localhost:8080/query';
+      return request<{ mapLocations: any[] }>(endpoint, GET_MAP_LOCATIONS);
+    },
+  });
+
+  const locations: WikiMapLocation[] = mapData?.mapLocations.map((loc: any) => ({
+    ...loc,
+    type: loc.type as LocationType,
+    coordinates: loc.coordinates as [number, number],
+  })) || [];
+
   const createCustomIcon = (type: string) => {
-    const isFood = type === 'eatery' || type === 'Mess';
-    // Use contrasting colors: Default blue (Building), Red-Orange (Food)
-    const colorClass = isFood ? 'bg-orange-500' : 'bg-blue-600';
-    const IconComponent = isFood ? Utensils : Building2;
+    let colorClass = 'bg-blue-600';
+    let IconComponent: any = Building2;
+
+    switch(type) {
+        case 'eatery':
+            colorClass = 'bg-orange-500';
+            IconComponent = Utensils;
+            break;
+        case 'Mess':
+            colorClass = 'bg-red-600';
+            IconComponent = Utensils;
+            break;
+        case 'Hostels':
+            colorClass = 'bg-indigo-600';
+            IconComponent = Home;
+            break;
+        case 'Departments':
+            colorClass = 'bg-emerald-600';
+            IconComponent = GraduationCap;
+            break;
+        default:
+            colorClass = 'bg-blue-600';
+            IconComponent = Building2;
+    }
     
     // We render the component to a string to use as HTML in divIcon
     // Note: This simple method creates a small React-like marker
-    const iconHtml = renderToString(
+    const iconHtml = renderToStaticMarkup(
         <div className={`flex items-center justify-center w-8 h-8 rounded-full shadow-lg border-2 border-white ${colorClass} text-white`}>
             <IconComponent size={16} />
         </div>
@@ -60,7 +98,7 @@ export default function MapView() {
     });
   };
 
-  if (!isMounted) {
+  if (!isMounted || isLoading) {
     return (
       <div className="w-full h-screen flex items-center justify-center bg-zinc-100 dark:bg-zinc-900">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
@@ -90,7 +128,7 @@ export default function MapView() {
           maxZoom={22}
         />
         
-        {mapLocations.map((location) => (
+        {locations.map((location) => (
           <Marker
             key={location.id}
             position={location.coordinates}

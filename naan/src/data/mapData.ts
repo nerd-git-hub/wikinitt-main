@@ -1,5 +1,5 @@
 
-export type LocationType = 'building' | 'eatery' | 'Mess';
+export type LocationType = 'building' | 'eatery' | 'Mess' | 'Departments' | 'Hostels';
 
 export interface WikiMapLocation {
     id: string;
