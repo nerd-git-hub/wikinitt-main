@@ -4,6 +4,7 @@ import chromadb
 
 from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
+from sentence_transformers import CrossEncoder
 from utils import RotatingGroqChat
 from pydantic import BaseModel, Field
 from langchain_core.tools import Tool
@@ -17,6 +18,15 @@ from postgres_store import PostgresByteStore
 load_dotenv()
 
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
+RERANKER_MODEL_NAME = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+try:
+    print(f"Loading Reranker: {RERANKER_MODEL_NAME}...")
+    RERANKER_INSTANCE = CrossEncoder(RERANKER_MODEL_NAME)
+    print("Reranker loaded.")
+except Exception as e:
+    print(f"Failed to load Reranker: {e}")
+    RERANKER_INSTANCE = None
+
 GROQ_API_KEYS = os.getenv("GROQ_API_KEYS")
 
 POSTGRES_CONNECTION_STRING = os.getenv('POSTGRES_CONNECTION_STRING', "postgresql://nitt_user:nitt_password@localhost:5432/nitt_rag_store")
@@ -65,6 +75,7 @@ def get_retriever():
         docstore=store,
         child_splitter=child_splitter,
         parent_splitter=parent_splitter,
+        search_kwargs={"k": 30}
     )
     return retriever
 
@@ -100,10 +111,32 @@ def get_chat_agent():
             print(f"SEARCH_DEBUG: No results found.")
             return f"No results found for query: '{query}'. The database does not contain information matching this query."
         
-        # Log first document partial content for debugging
         if docs:
-            print(f"SEARCH_DEBUG: First result: {docs[0].page_content[:100]}...")
+            print(f"SEARCH_DEBUG: Retrieved {len(docs)} documents. Reranking...")
             
+            try:
+                reranker = RERANKER_INSTANCE
+                if not reranker:
+                    print("SEARCH_WARNING: Reranker not initialized, using lazy load fallback.")
+                    reranker = CrossEncoder(RERANKER_MODEL_NAME)
+                
+                pairs = [[query, doc.page_content] for doc in docs]
+                
+                scores = reranker.predict(pairs)
+                
+                scored_docs = sorted(zip(docs, scores), key=lambda x: x[1], reverse=True)
+                
+                print(f"SEARCH_DEBUG: Top 3 Re-ranked Scores: {[s[1] for s in scored_docs[:3]]}")
+                
+                final_docs = [doc for doc, score in scored_docs[:6]]
+                
+                print(f"SEARCH_DEBUG: Top Result after re-ranking: {final_docs[0].page_content[:100]}...")
+                return format_docs(final_docs)
+                
+            except Exception as e:
+                print(f"SEARCH_WARNING: Re-ranking failed ({e}), falling back to original Top 6.")
+                return format_docs(docs[:6])
+
         return format_docs(docs)
 
     tool = Tool(
