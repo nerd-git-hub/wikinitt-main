@@ -109,7 +109,7 @@ def get_chat_agent():
     tool = Tool(
         name="search_nitt_data",
         func=search_nitt_func,
-        description="Searches for information about NIT Trichy, courses, events, campus details, and academic regulations. Use this whenever you need factual information about the institute.",
+        description="Searches for information about NIT Trichy. INPUT RULES: 1. Use specific proper nouns (e.g., 'Vasu', 'Uma', 'Hostel Opal'). 2. Do NOT infer context from previous queries unless explicitly asked. 3. If searching for a person, include their department or their other relevant information if known.",
         args_schema=SearchInput
     )
     tools = [tool]
