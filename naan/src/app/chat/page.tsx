@@ -44,7 +44,7 @@ interface Message {
 }
 
 export default function ChatPage() {
-  const router = useRouter(); // Initialize Router
+  const router = useRouter();
   const { data: session, status } = useSession();
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
@@ -57,12 +57,8 @@ export default function ChatPage() {
   const [sessionId, setSessionId] = useState<string>('');
 
   useEffect(() => {
-    let storedSessionId = sessionStorage.getItem('wikinitt_session_id');
-    if (!storedSessionId) {
-      storedSessionId = crypto.randomUUID();
-      sessionStorage.setItem('wikinitt_session_id', storedSessionId);
-    }
-    setSessionId(storedSessionId);
+    const newSessionId = crypto.randomUUID();
+    setSessionId(newSessionId);
   }, []);
 
   const handleSend = async (textOverride?: string) => {
@@ -70,7 +66,6 @@ export default function ChatPage() {
     if (!textToSend.trim()) return;
 
     if (status !== 'authenticated' || !session?.backendToken) {
-      // Should not happen if UI is blocked, but good for safety
       console.error("User not authenticated");
       return;
     }

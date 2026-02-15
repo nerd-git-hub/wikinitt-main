@@ -10,7 +10,7 @@ import pymongo
 from bson import ObjectId
 from fastapi import Depends
 from app import get_chat_agent, get_retriever
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, ToolMessage
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, ToolMessage, messages_to_dict, messages_from_dict
 from langchain_core.documents import Document
 import uvicorn
 import json
@@ -139,7 +139,6 @@ async def get_admin_user(user_id: str = Depends(get_current_user)):
         print(f"Admin check failed: {e}")
         raise HTTPException(status_code=500, detail="Internal Server Error during auth check")
 
-sessions = {}
 print("Initializing Agent...")
 try:
     llm_with_tools, tools = get_chat_agent()
@@ -179,10 +178,18 @@ async def chat_generator(user_input: str, session_id: str):
         yield json.dumps({"error": "Agent not initialized"}) + "\n"
         return
 
-    if session_id not in sessions:
-        sessions[session_id] = []
+    redis_key = f"session:{session_id}"
+    
+    raw_history = redis_client.get(redis_key)
+    if raw_history:
+        try:
+            chat_history = messages_from_dict(json.loads(raw_history))
+        except Exception as e:
+            print(f"Error loading history for {session_id}: {e}")
+            chat_history = []
+    else:
+        chat_history = []
 
-    chat_history = sessions[session_id]
     messages = [SYSTEM_MESSAGE] + chat_history + [HumanMessage(content=user_input)]
     
     try:
@@ -290,8 +297,15 @@ async def chat_generator(user_input: str, session_id: str):
                 continue
             
             else:
-                sessions[session_id].append(HumanMessage(content=user_input))
-                sessions[session_id].append(AIMessage(content=str(full_response.content)))
+                chat_history.append(HumanMessage(content=user_input))
+                chat_history.append(AIMessage(content=str(full_response.content)))
+                
+                try:
+                    serialized_history = json.dumps(messages_to_dict(chat_history))
+                    redis_client.setex(redis_key, 86400, serialized_history)
+                except Exception as e:
+                    print(f"Error saving history to Redis: {e}")
+                    
                 break
 
     except Exception as e:
