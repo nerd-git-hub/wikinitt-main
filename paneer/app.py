@@ -88,9 +88,22 @@ def get_chat_agent():
         query: str = Field(description="The query to search for information about NIT Trichy.")
 
     def search_nitt_func(query: str):
-        docs = retriever.invoke(query)
+        print(f"SEARCH_DEBUG: Tool invoked with query: '{query}'")
+        try:
+            docs = retriever.invoke(query)
+            print(f"SEARCH_DEBUG: Retrieved {len(docs) if docs else 0} documents.")
+        except Exception as e:
+            print(f"SEARCH_ERROR: Implementation failed: {e}")
+            return f"INTERNAL ERROR: Search failed due to {e}"
+            
         if not docs:
+            print(f"SEARCH_DEBUG: No results found.")
             return f"No results found for query: '{query}'. The database does not contain information matching this query."
+        
+        # Log first document partial content for debugging
+        if docs:
+            print(f"SEARCH_DEBUG: First result: {docs[0].page_content[:100]}...")
+            
         return format_docs(docs)
 
     tool = Tool(
