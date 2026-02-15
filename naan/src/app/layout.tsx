@@ -6,14 +6,13 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ChatFAB from "@/components/ChatFAB";
 import { Providers } from "@/components/Providers";
+import { SetupModal } from "@/components/SetupModal";
 
 export const metadata: Metadata = {
   title: "WikiNITT - The Community Platform for NITT",
   description:
     "WikiNITT is a community platform for students of NIT Trichy to connect, share, and discuss.",
 };
-
-import { SetupModal } from "@/components/SetupModal";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -36,7 +35,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} ${merriweather.variable} antialiased`}>
+      {/* Added suppressHydrationWarning to body to prevent extension-related errors */}
+      <body 
+        className={`${inter.variable} ${merriweather.variable} antialiased`}
+        suppressHydrationWarning={true}
+      >
         <Providers>
           <SetupModal />
           <Navbar>
