@@ -1,22 +1,37 @@
-import chromadb
+import sys
+from app import get_retriever, format_docs
 
-client = chromadb.HttpClient(host="localhost", port=8001)
+def search_nitt_func(query: str):
+    print(f"Initializing retriever...")
+    retriever = get_retriever()
+    if not retriever:
+        print("Failed to initialize retriever.")
+        return
 
-collections = client.list_collections()
-print(f"Found {len(collections)} collections.")
+    print(f"Searching for: '{query}'...")
+    
+    # Debug: Check vectorstore count
+    try:
+        collection_data = retriever.vectorstore.get()
+        ids = collection_data.get('ids', [])
+        print(f"DEBUG: Vectorstore has {len(ids)} documents.")
+    except Exception as e:
+        print(f"DEBUG: Failed to get vectorstore count: {e}")
 
-for col_info in collections:
-    col_name = col_info if isinstance(col_info, str) else col_info.name
+    docs = retriever.invoke(query)
     
-    print(f"\n--- Collection: {col_name} ---")
+    if not docs:
+        print(f"No results found for query: '{query}'.")
+        return
+        
+    print("\n--- Results ---\n")
+    print(format_docs(docs))
+    print("\n----------------")
+
+if __name__ == "__main__":
+    if len(sys.argv) > 1:
+        query = " ".join(sys.argv[1:])
+    else:
+        query = input("Enter search query: ")
     
-    collection = client.get_collection(name=col_name)
-    
-    count = collection.count()
-    print(f"Total items: {count}")
-    
-    print("\n[First 5 Items]:")
-    print(collection.peek(limit=5))
-    
-    all_data = collection.get(limit=count) 
-    
+    search_nitt_func(query)
