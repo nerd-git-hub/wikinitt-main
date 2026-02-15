@@ -1,5 +1,6 @@
 import NextAuth, { User } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import Google from "next-auth/providers/google";
 import { GraphQLClient } from "graphql-request";
 import { gql } from "@/gql";
 import { ADMIN_LOGIN_MUTATION } from "@/gql/admin";
@@ -48,51 +49,17 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         }
       },
     }),
-    {
-      id: "dauth",
-      name: "Dauth",
-      type: "oauth",
+    Google({
+      clientId: process.env.AUTH_GOOGLE_ID,
+      clientSecret: process.env.AUTH_GOOGLE_SECRET,
       authorization: {
-        url: "https://auth.delta.nitt.edu/authorize",
-        params: { scope: "user" },
-      },
-      token: {
-        url: "https://auth.delta.nitt.edu/api/oauth/token",
-      },
-      userinfo: {
-        url: "https://auth.delta.nitt.edu/api/resources/user",
-        async request({ tokens, provider }: { tokens: any; provider: any }) {
-          const res = await fetch(provider.userinfo?.url!, {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${tokens.access_token}`,
-              "Content-Type": "application/json",
-            },
-          });
-
-          if (!res.ok) {
-            const text = await res.text();
-            throw new Error(`Userinfo failed: ${text}`);
-          }
-
-          return await res.json();
+        params: {
+          prompt: "consent",
+          access_type: "offline",
+          response_type: "code",
         },
       },
-      profile(profile) {
-        return {
-          id: String(profile.id),
-          name: profile.name,
-          email: profile.email,
-          gender: profile.gender,
-          phoneNumber: profile.phoneNumber,
-        };
-      },
-      clientId: process.env.DAUTH_CLIENT_ID,
-      clientSecret: process.env.DAUTH_CLIENT_SECRET,
-      client: {
-        token_endpoint_auth_method: "client_secret_post",
-      },
-    },
+    }),
   ],
   callbacks: {
     async jwt({ token, account, user, profile, trigger, session }) {
@@ -126,11 +93,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         try {
           const response = await graphQLClient.request(mutation, {
             input: {
-              id: String(profile!.id!),
+              id: String(profile!.sub || user.id),
               name: user.name!,
               email: user.email!,
-              gender: user.gender!,
-              phoneNumber: user.phoneNumber!,
+              gender: "unknown",
+              phoneNumber: "unknown",
               machineToken: process.env.MACHINE_TOKEN!,
             },
           });

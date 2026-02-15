@@ -8,6 +8,7 @@ import {
 import LogoIcon from "@/components/logo.svg";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { googleLogin } from "@/app/actions";
 
 export default function LandingNavbar() {
     const { status } = useSession();
@@ -23,16 +24,15 @@ export default function LandingNavbar() {
     }, []);
 
     return (
-        <header 
-            className={`sticky top-0 z-50 w-full transition-all duration-300 ${
-                scrolled 
-                ? "bg-white/70 backdrop-blur-xl border-b border-white/50 shadow-sm" 
+        <header
+            className={`sticky top-0 z-50 w-full transition-all duration-300 ${scrolled
+                ? "bg-white/70 backdrop-blur-xl border-b border-white/50 shadow-sm"
                 : "bg-transparent border-b border-transparent"
-            }`}
+                }`}
         >
             <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex h-16 items-center justify-between">
-                    
+
                     {/* LEFT: Logo */}
                     <div className="flex items-center gap-4">
                         <Link href="/" className="flex items-center group gap-2.5">
@@ -75,12 +75,14 @@ export default function LandingNavbar() {
                         )}
 
                         {status === "unauthenticated" && (
-                            <button
-                                onClick={() => signIn("dauth")}
-                                className="rounded-full bg-slate-900 px-6 py-2 text-sm font-bold text-white shadow-lg shadow-indigo-900/20 hover:bg-indigo-600 hover:shadow-indigo-600/30 hover:-translate-y-0.5 transition-all"
-                            >
-                                Login
-                            </button>
+                            <form action={googleLogin}>
+                                <button
+                                    type="submit"
+                                    className="rounded-full bg-slate-900 px-6 py-2 text-sm font-bold text-white shadow-lg shadow-indigo-900/20 hover:bg-indigo-600 hover:shadow-indigo-600/30 hover:-translate-y-0.5 transition-all"
+                                >
+                                    Login
+                                </button>
+                            </form>
                         )}
 
                         {status === "authenticated" && <UserMenu />}

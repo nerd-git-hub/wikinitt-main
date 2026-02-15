@@ -10,15 +10,16 @@ import (
 )
 
 type User struct {
-	ID            string    `bson:"_id,omitempty"`
-	Name          string    `bson:"name"`
-	Username      string    `bson:"username"`
-	DisplayName   string    `bson:"displayName"`
-	Email         string    `bson:"email"`
-	Gender        string    `bson:"gender"`
-	Avatar        string    `bson:"avatar"`
-	PhoneNumber   string    `bson:"phoneNumber"`
-	DauthID       string    `bson:"dauthId"`
+	ID          string `bson:"_id,omitempty"`
+	Name        string `bson:"name"`
+	Username    string `bson:"username"`
+	DisplayName string `bson:"displayName"`
+	Email       string `bson:"email"`
+	Gender      string `bson:"gender"`
+	Avatar      string `bson:"avatar"`
+	PhoneNumber string `bson:"phoneNumber"`
+
+	OAuthID       string    `bson:"oauthId"`
 	PasswordHash  string    `bson:"passwordHash"`
 	SetupComplete bool      `bson:"setupComplete"`
 	IsAdmin       bool      `bson:"isAdmin"`
@@ -37,7 +38,7 @@ type PublicUser struct {
 
 type Repository interface {
 	Create(ctx context.Context, user *User) error
-	GetByDauthID(ctx context.Context, dauthID string) (*User, error)
+	GetByOAuthID(ctx context.Context, oauthID string) (*User, error)
 	GetByID(ctx context.Context, id string) (*User, error)
 	GetByEmail(ctx context.Context, email string) (*User, error)
 	GetByUsername(ctx context.Context, username string) (*User, error)
@@ -70,9 +71,9 @@ func (r *repository) Create(ctx context.Context, user *User) error {
 	return nil
 }
 
-func (r *repository) GetByDauthID(ctx context.Context, dauthID string) (*User, error) {
+func (r *repository) GetByOAuthID(ctx context.Context, oauthID string) (*User, error) {
 	var user User
-	err := r.coll.FindOne(ctx, bson.M{"dauthId": dauthID}).Decode(&user)
+	err := r.coll.FindOne(ctx, bson.M{"oauthId": oauthID}).Decode(&user)
 	if err != nil {
 		return nil, err
 	}
@@ -173,8 +174,8 @@ func (r *repository) Update(ctx context.Context, id string, updates map[string]i
 func (r *repository) EnsureIndexes(ctx context.Context) error {
 	indices := []mongo.IndexModel{
 		{
-			Keys:    bson.D{{Key: "dauthId", Value: 1}},
-			Options: options.Index().SetUnique(true),
+			Keys:    bson.D{{Key: "oauthId", Value: 1}},
+			Options: options.Index().SetUnique(true).SetSparse(true),
 		},
 		{
 			Keys:    bson.D{{Key: "email", Value: 1}},

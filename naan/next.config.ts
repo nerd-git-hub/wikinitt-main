@@ -35,10 +35,21 @@ const nextConfig: NextConfig = {
         port: "",
         pathname: "/**",
       },
-      // 👇 Added this block for Unsplash images
       {
         protocol: "https",
         hostname: "images.unsplash.com",
+        port: "",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "lh3.googleusercontent.com",
+        port: "",
+        pathname: "/**",
+      },
+      {
+        protocol: "http",
+        hostname: "googleusercontent.com",
         port: "",
         pathname: "/**",
       },

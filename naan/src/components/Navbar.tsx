@@ -15,8 +15,6 @@ import {
   Search,
   User,
   LogOut,
-  ChevronRight,
-  Loader2,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -24,17 +22,18 @@ import { signIn, useSession, signOut } from "next-auth/react";
 import { GET_ME } from "@/queries/user";
 import { useQuery } from "@tanstack/react-query";
 import { request } from "graphql-request";
+import { googleLogin } from "@/app/actions";
 
 function cn(...inputs: (string | undefined | null | false)[]) {
   return twMerge(clsx(inputs));
 }
 
-// ... (UserMenu component remains the same as previous) ...
 export function UserMenu() {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const { data: session } = useSession();
 
+  console.log(session?.backendToken)
   const { data: me } = useQuery({
     queryKey: ["me"],
     queryFn: async () => {
@@ -141,13 +140,12 @@ export default function Navbar({ children }: { children: React.ReactNode }) {
   // === EXCLUSION LOGIC ===
   const isAdmin = pathname?.startsWith("/admin");
   const isChat = pathname === "/chat";
-  
+
   // If Admin, Chat, or Home page, render children ONLY (no navbar/sidebar)
   if (isAdmin || isChat || pathname === "/") {
     return <>{children}</>;
   }
 
-  // ... (Rest of the component logic remains the same for other pages)
   const navItems = [
     { name: "Home", href: "/", icon: Home, section: "main" },
     { name: "Articles", href: "/articles", icon: BookOpen, section: "main" },
@@ -175,7 +173,7 @@ export default function Navbar({ children }: { children: React.ReactNode }) {
                 {isSidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
               </button>
               <Link href="/" className="flex ms-2 md:me-24 items-center group">
-                <LogoIcon className="h-8 w-8 mr-2 fill-white bg-gradient-to-br from-indigo-600 to-blue-600 rounded-lg p-1.5 shadow-md group-hover:scale-105 transition-transform" />
+                <LogoIcon className="h-8 w-8 mr-2 fill-white bg-linear-to-br from-indigo-600 to-blue-600 rounded-lg p-1.5 shadow-md group-hover:scale-105 transition-transform" />
                 <span className="self-center text-xl font-bold whitespace-nowrap text-slate-800 tracking-tight">
                   Wiki<span className="text-amber-600">NITT</span>
                 </span>
@@ -199,12 +197,14 @@ export default function Navbar({ children }: { children: React.ReactNode }) {
             <div className="flex items-center">
               <div className="flex items-center ms-3 relative" ref={profileRef}>
                 {status === "unauthenticated" && (
-                  <button
-                    onClick={() => signIn("dauth")}
-                    className="rounded-full bg-indigo-600 px-5 py-2 text-sm font-bold text-white shadow-lg shadow-indigo-200 hover:bg-indigo-700 hover:shadow-indigo-300 hover:-translate-y-0.5 transition-all"
-                  >
-                    Login
-                  </button>
+                  <form action={googleLogin}>
+                    <button
+                      type="submit"
+                      className="rounded-full bg-indigo-600 px-5 py-2 text-sm font-bold text-white shadow-lg shadow-indigo-200 hover:bg-indigo-700 hover:shadow-indigo-300 hover:-translate-y-0.5 transition-all"
+                    >
+                      Login with Google
+                    </button>
+                  </form>
                 )}
                 {status === "authenticated" && <UserMenu />}
               </div>

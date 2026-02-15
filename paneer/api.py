@@ -1,7 +1,13 @@
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+from starlette.requests import Request
+from starlette.responses import JSONResponse
+import jwt
+import pymongo
+from bson import ObjectId
+from fastapi import Depends
 from app import get_chat_agent, get_retriever
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, ToolMessage
 from langchain_core.documents import Document
@@ -16,6 +22,7 @@ from dotenv import load_dotenv
 
 import redis
 import pickle
+load_dotenv()
 
 redis_host = os.getenv('REDIS_HOST', 'localhost')
 redis_port = int(os.getenv('REDIS_PORT', 6379))
@@ -28,7 +35,6 @@ class QueueStatus(BaseModel):
     queued_urls: list[str]
 
 
-load_dotenv()
 
 # Data Models
 class AdminDocument(BaseModel):
@@ -46,6 +52,50 @@ class ChatRequest(BaseModel):
     session_id: str
 
 ENVIRONMENT = os.getenv("ENV", "development")
+JWT_SECRET = os.getenv("JWT_SECRET", "your-secret-key")
+MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
+
+# Database Connection
+try:
+    mongo_client = pymongo.MongoClient(MONGODB_URI)
+    db = mongo_client.get_database() # Uses database from URI
+    users_collection = db["users"]
+    print("Connected to MongoDB")
+except Exception as e:
+    print(f"Failed to connect to MongoDB: {e}")
+    users_collection = None
+
+class AuthMiddleware(BaseHTTPMiddleware):
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ):
+        # Check for Authorization header
+        auth_header = request.headers.get("Authorization")
+        
+        request.state.user_id = None
+        
+        if auth_header:
+            try:
+                # Extract token
+                scheme, token = auth_header.split()
+                if scheme.lower() != "bearer":
+                    raise HTTPException(status_code=403, detail="Invalid authentication scheme")
+                
+                # Decode token
+                payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+                user_id = payload.get("user_id")
+                
+                if user_id:
+                     request.state.user_id = user_id
+                else:
+                     return JSONResponse(status_code=403, content={"detail": "Invalid token payload"})
+                     
+            except (ValueError, jwt.ExpiredSignatureError, jwt.InvalidTokenError) as e:
+                print(f"Auth failed: {e}")
+                return JSONResponse(status_code=403, content={"detail": "Invalid authentication token"})
+        
+        response = await call_next(request)
+        return response
 
 app = FastAPI(
     root_path="/chat" if ENVIRONMENT == "production" else ""
@@ -58,6 +108,32 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.add_middleware(AuthMiddleware)
+
+# Dependencies
+async def get_current_user(request: Request):
+    user_id = request.state.user_id
+    if not user_id:
+        raise HTTPException(status_code=403, detail="Not authenticated")
+    return user_id
+
+async def get_admin_user(user_id: str = Depends(get_current_user)):
+    if not users_collection:
+        raise HTTPException(status_code=500, detail="Database connection unavailable")
+        
+    try:
+        user = users_collection.find_one({"_id": ObjectId(user_id)})
+        if not user:
+             raise HTTPException(status_code=403, detail="User not found")
+        
+        if not user.get("isAdmin", False):
+             raise HTTPException(status_code=403, detail="Requires admin privileges")
+             
+        return user
+    except Exception as e:
+        print(f"Admin check failed: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error during auth check")
 
 sessions = {}
 print("Initializing Agent...")
@@ -220,7 +296,7 @@ if os.getenv("GROQ_API_KEYS"):
 
 rag_processor = RagProcessor(GROQ_API_KEYS)
 
-@app.get("/admin/documents")
+@app.get("/admin/documents", dependencies=[Depends(get_admin_user)])
 async def list_documents(page: int = 1, limit: int = 20, search: str = None):
     retriever = get_retriever()
     if not retriever:
@@ -274,7 +350,7 @@ async def list_documents(page: int = 1, limit: int = 20, search: str = None):
         "pages": (total_docs + limit - 1) // limit if limit > 0 else 1
     }
 
-@app.post("/admin/parse-pdf")
+@app.post("/admin/parse-pdf", dependencies=[Depends(get_admin_user)])
 async def parse_pdf(file: UploadFile = File(...)):
     temp_file = f"temp_{uuid.uuid4()}.pdf"
     try:
@@ -325,7 +401,7 @@ async def parse_pdf(file: UploadFile = File(...)):
             os.remove(temp_file)
         raise HTTPException(status_code=500, detail=f"PDF Parsing failed: {str(e)}")
 
-@app.post("/admin/documents")
+@app.post("/admin/documents", dependencies=[Depends(get_admin_user)])
 async def add_document(doc: AdminDocument, process: bool = False):
     retriever = get_retriever()
     if not retriever:
@@ -390,7 +466,7 @@ async def add_document(doc: AdminDocument, process: bool = False):
 
     return {"status": "success", "message": "Document added"}
 
-@app.put("/admin/documents/{doc_id}")
+@app.put("/admin/documents/{doc_id}", dependencies=[Depends(get_admin_user)])
 async def update_document(doc_id: str, doc: AdminDocument, process: bool = False):
     retriever = get_retriever()
     if not retriever:
@@ -439,7 +515,7 @@ async def update_document(doc_id: str, doc: AdminDocument, process: bool = False
     
     return {"status": "success", "message": "Document updated"}
 
-@app.delete("/admin/documents/{doc_id}")
+@app.delete("/admin/documents/{doc_id}", dependencies=[Depends(get_admin_user)])
 async def delete_document(doc_id: str):
     retriever = get_retriever()
     if not retriever:
@@ -462,7 +538,7 @@ async def delete_document(doc_id: str):
 class DeleteDocumentsRequest(BaseModel):
     ids: list[str]
 
-@app.post("/admin/documents/delete")
+@app.post("/admin/documents/delete", dependencies=[Depends(get_admin_user)])
 async def delete_documents(request: DeleteDocumentsRequest):
     retriever = get_retriever()
     if not retriever:
@@ -500,7 +576,7 @@ async def delete_documents(request: DeleteDocumentsRequest):
     return {"status": "success", "message": f"Deleted {len(ids_to_delete)} documents"}
 
 
-@app.post("/admin/crawl")
+@app.post("/admin/crawl", dependencies=[Depends(get_admin_user)])
 async def trigger_crawl(request: CrawlRequest):
     import subprocess
     try:
@@ -513,14 +589,14 @@ async def trigger_crawl(request: CrawlRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/chat")
+@app.post("/chat", dependencies=[Depends(get_current_user)])
 async def chat_endpoint(request: ChatRequest):
     return StreamingResponse(
         chat_generator(request.message, request.session_id), 
         media_type="application/x-ndjson"
     )
 
-@app.get("/admin/redis/queue")
+@app.get("/admin/redis/queue", dependencies=[Depends(get_admin_user)])
 async def get_redis_queue_status():
     try:
         spider_name = "nitt"
@@ -586,7 +662,7 @@ async def get_redis_queue_status():
             "queued_urls": []
         }
 
-@app.delete("/admin/redis/queue")
+@app.delete("/admin/redis/queue", dependencies=[Depends(get_admin_user)])
 async def flush_redis_queue():
     try:
         spider_name = "nitt"
@@ -603,7 +679,7 @@ async def flush_redis_queue():
 class AddUrlRequest(BaseModel):
     url: str
 
-@app.post("/admin/redis/queue")
+@app.post("/admin/redis/queue", dependencies=[Depends(get_admin_user)])
 async def add_url_to_queue(request: AddUrlRequest):
     try:
         spider_name = "nitt"

@@ -26,25 +26,40 @@ func (r *mutationResolver) SignIn(ctx context.Context, input model.NewUser) (str
 		return "", fmt.Errorf("invalid machine token")
 	}
 
-	existingUser, err := r.UserRepo.GetByDauthID(ctx, input.ID)
+	// 1. Try to find by OAuth ID (Unified)
+	existingUser, err := r.UserRepo.GetByOAuthID(ctx, input.ID)
 	if err == nil && existingUser != nil {
-
 		return auth.GenerateToken(existingUser.ID)
 	}
 
+	// 2. Try to find by Email
+	existingUser, err = r.UserRepo.GetByEmail(ctx, input.Email)
+	if err == nil && existingUser != nil {
+		// Link OAuth ID if not present
+		if existingUser.OAuthID == "" {
+			_, _ = r.UserRepo.Update(ctx, existingUser.ID, map[string]interface{}{"oauthId": input.ID})
+		}
+		return auth.GenerateToken(existingUser.ID)
+	}
+
+	// 3. Create New User
 	avatarURL, err := auth.AvatarGenerationAndCleanup(input.ID, r.Uploader)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate avatar: %w", err)
+
 	}
 
 	defaultUsername := fmt.Sprintf("user_%s", input.ID)
-	defaultDisplayName := input.Name
+	// Sanitize username
+	defaultUsername = regexp.MustCompile(`[^a-zA-Z0-9_.-]`).ReplaceAllString(defaultUsername, "")
+	// Simple random suffix
+	defaultUsername = fmt.Sprintf("%s_%d", defaultUsername, time.Now().UnixNano())
 
 	user := users.User{
-		DauthID:       input.ID,
+		OAuthID:       input.ID,
 		Name:          input.Name,
 		Username:      defaultUsername,
-		DisplayName:   defaultDisplayName,
+		DisplayName:   input.Name,
 		Email:         input.Email,
 		Gender:        input.Gender,
 		PhoneNumber:   input.PhoneNumber,
