@@ -39,6 +39,10 @@ type Repository interface {
 	GetBySlug(ctx context.Context, slug string) (*Article, error)
 	EnsureIndexes(ctx context.Context) error
 	GetAllTitles(ctx context.Context) (map[string]string, error)
+	
+	CountArticles(ctx context.Context) (int64, error)
+	GetArticlesChunk(ctx context.Context, skip int64, limit int64) ([]Article, error)
+	UpdateContent(ctx context.Context, id string, content string) error
 }
 
 type repository struct {
@@ -299,3 +303,72 @@ func (r *repository) GetAllTitles(ctx context.Context) (map[string]string, error
 
 	return titleToSlug, nil
 }
+
+
+func (r *repository) CountArticles(ctx context.Context) (int64, error) {
+	return r.coll.CountDocuments(ctx, bson.M{})
+}
+
+
+func (r *repository) GetArticlesChunk(
+	ctx context.Context,
+	skip int64,
+	limit int64,
+) ([]Article, error) {
+
+	opts := options.Find().
+		SetSkip(skip).
+		SetLimit(limit).
+		SetSort(bson.M{"_id": 1}).
+		SetProjection(bson.M{
+			"_id": 1,
+			"content": 1,
+		})
+
+	cursor, err := r.coll.Find(ctx, bson.M{}, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var articles []Article
+
+	for cursor.Next(ctx) {
+
+		// temp struct with correct type
+		var temp struct {
+			ID      bson.ObjectID `bson:"_id"`
+			Content string             `bson:"content"`
+		}
+
+		if err := cursor.Decode(&temp); err != nil {
+			return nil, err
+		}
+
+		articles = append(articles, Article{
+			ID:      temp.ID.Hex(),  // convert to string here
+			Content: temp.Content,
+		})
+	}
+
+	return articles, nil
+}
+
+
+func (r *repository) UpdateContent(ctx context.Context, id string, content string) error {
+
+	objID, err := bson.ObjectIDFromHex(id)
+	if err != nil {
+		return err
+	}
+
+	_, err = r.coll.UpdateOne(
+		ctx,
+		bson.M{"_id": objID},
+		bson.M{"$set": bson.M{"content": content}},
+	)
+
+	return err
+}
+
+

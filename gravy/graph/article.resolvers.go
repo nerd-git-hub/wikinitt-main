@@ -51,6 +51,15 @@ func (r *mutationResolver) CreateArticle(ctx context.Context, input model.NewArt
 		return nil, err
 	}
 
+	articles.StartBacklinkWorkers(
+    	context.Background(),
+		r.ArticleRepo,
+		created.Title,
+		created.Slug,
+		created.ID,
+	)
+
+
 	created.Author = &users.PublicUser{
 		ID:     user.ID,
 		Name:   user.Name,
