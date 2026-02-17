@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { FileText, Upload, Loader2, Sparkles } from 'lucide-react';
 import { CHAT_ENDPOINT } from '@/lib/chat';
+import { useSession } from 'next-auth/react';
 
 export default function AddDocumentForm({ onAdd }: { onAdd: () => void }) {
     const [isOpen, setIsOpen] = useState(false);
@@ -18,10 +19,11 @@ export default function AddDocumentForm({ onAdd }: { onAdd: () => void }) {
 
     const [loading, setLoading] = useState(false);
     const [parsing, setParsing] = useState(false);
+    const { data: session } = useSession();
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (!file) return;
+        if (!file || !session) return;
 
         setParsing(true);
         const formData = new FormData();
@@ -30,7 +32,10 @@ export default function AddDocumentForm({ onAdd }: { onAdd: () => void }) {
         try {
             const res = await fetch(`${CHAT_ENDPOINT}/admin/parse-pdf`, {
                 method: 'POST',
-                body: formData
+                body: formData,
+                headers: {
+                    'Authorization': `Bearer ${session.backendToken}`
+                }
             });
 
             if (!res.ok) throw new Error('Failed to parse PDF');
@@ -52,7 +57,7 @@ export default function AddDocumentForm({ onAdd }: { onAdd: () => void }) {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (isSubmittingRef.current) return;
+        if (isSubmittingRef.current || !session) return;
         isSubmittingRef.current = true;
         setLoading(true);
 
@@ -60,7 +65,10 @@ export default function AddDocumentForm({ onAdd }: { onAdd: () => void }) {
             // Append process query param
             const res = await fetch(`${CHAT_ENDPOINT}/admin/documents?process=${processWithLLM}`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.backendToken}`
+                },
                 body: JSON.stringify({
                     id: crypto.randomUUID(),
                     title,

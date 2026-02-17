@@ -1,9 +1,16 @@
 from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+from starlette.requests import Request
+from starlette.responses import JSONResponse
+import jwt
+import pymongo
+from bson import ObjectId
+from fastapi import Depends
 from app import get_chat_agent, get_retriever
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, ToolMessage
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, ToolMessage, messages_to_dict, messages_from_dict
 from langchain_core.documents import Document
 import uvicorn
 import json
@@ -13,9 +20,14 @@ import os
 import pymupdf4llm
 from utils import RagProcessor
 from dotenv import load_dotenv
+from app import POSTGRES_CONNECTION_STRING
+import psycopg2
+import chromadb
+
 
 import redis
 import pickle
+load_dotenv()
 
 redis_host = os.getenv('REDIS_HOST', 'localhost')
 redis_port = int(os.getenv('REDIS_PORT', 6379))
@@ -27,10 +39,6 @@ class QueueStatus(BaseModel):
     scheduled_count: int
     queued_urls: list[str]
 
-
-load_dotenv()
-
-# Data Models
 class AdminDocument(BaseModel):
     id: str
     source_url: str
@@ -46,6 +54,52 @@ class ChatRequest(BaseModel):
     session_id: str
 
 ENVIRONMENT = os.getenv("ENV", "development")
+JWT_SECRET = os.getenv("JWT_SECRET", "your-secret-key")
+MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
+
+# Database Connection
+try:
+    mongo_client = pymongo.MongoClient(MONGODB_URI)
+    db = mongo_client.get_database(name="wikinitt")
+    users_collection = db["users"]
+    print("Connected to MongoDB")
+except Exception as e:
+    print(f"Failed to connect to MongoDB: {e}")
+    users_collection = None
+
+retriever = get_retriever()
+
+class AuthMiddleware(BaseHTTPMiddleware):
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ):
+        # Check for Authorization header
+        auth_header = request.headers.get("Authorization")
+        
+        request.state.user_id = None
+        
+        if auth_header:
+            try:
+                # Extract token
+                scheme, token = auth_header.split()
+                if scheme.lower() != "bearer":
+                    raise HTTPException(status_code=403, detail="Invalid authentication scheme")
+                
+                # Decode token
+                payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+                user_id = payload.get("user_id")
+                
+                if user_id:
+                     request.state.user_id = user_id
+                else:
+                     return JSONResponse(status_code=403, content={"detail": "Invalid token payload"})
+                     
+            except (ValueError, jwt.ExpiredSignatureError, jwt.InvalidTokenError) as e:
+                print(f"Auth failed: {e}")
+                return JSONResponse(status_code=403, content={"detail": "Invalid authentication token"})
+        
+        response = await call_next(request)
+        return response
 
 app = FastAPI(
     root_path="/chat" if ENVIRONMENT == "production" else ""
@@ -59,7 +113,32 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-sessions = {}
+app.add_middleware(AuthMiddleware)
+
+# Dependencies
+async def get_current_user(request: Request):
+    user_id = request.state.user_id
+    if not user_id:
+        raise HTTPException(status_code=403, detail="Not authenticated")
+    return user_id
+
+async def get_admin_user(user_id: str = Depends(get_current_user)):
+    if users_collection is None:
+        raise HTTPException(status_code=500, detail="Database connection unavailable")
+    print("user id is: ", user_id)
+    try:
+        user = users_collection.find_one({"_id": ObjectId(user_id)})
+        if not user:
+             raise HTTPException(status_code=403, detail="User not found")
+        
+        if not user.get("isAdmin", False):
+             raise HTTPException(status_code=403, detail="Requires admin privileges")
+             
+        return user
+    except Exception as e:
+        print(f"Admin check failed: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error during auth check")
+
 print("Initializing Agent...")
 try:
     llm_with_tools, tools = get_chat_agent()
@@ -79,8 +158,14 @@ CORE RESPONSIBILITIES:
 3. **Use Retrieved Info**: If the `search_nitt_data` tool returns ANY information that is relevant to the user's query, USE IT.
 4. **Citations**: ALWAYS cite your sources. When you use information from the `search_nitt_data` tool, the context will have a "Source: <url>" line. You must include these URLs in your response as markdown links.
 
+CRITICAL CONTEXT RULES:
+- **Prioritize Current Query**: ALWAYS focus on the *latest* user message to determine what to search for.
+- **Context vs. Switching**: Only use the previous chat history if the user uses pronouns (he, she, it, they, this, that) or explicitly refers back to the previous topic.
+- **New Topic = New Search**: If the user asks about a NEW entity (e.g., asked about "Uma" before, now asks about "Vasu"), you MUST search for the NEW entity ("Vasu"). Do NOT search for the old entity ("Uma") again.
+- **Query Formulation**: When searching, use specific keywords. E.g., if asking for "Vasu's email", search for "Vasu NIT Trichy email" or "Vasu faculty profile".
+
 PROCESS:
-- **Phase 1: Thinking**: Start immediately with `<thinking>`. Analyze the request. Decide if you need tools.
+- **Phase 1: Thinking**: Start immediately with `<thinking>`. Analyze the request. Check if the topic has changed from the previous turn.
 - **Phase 2: Tool Execution**: If you need information, call `search_nitt_data`.
 - **Phase 3: Refinement**: Analyze tool results in a new `<thinking>` block.
     - **CRITICAL**: If the tool returns "No results found" or similar, AND you have tried 1-2 plausible queries, **STOP**.
@@ -93,17 +178,24 @@ async def chat_generator(user_input: str, session_id: str):
         yield json.dumps({"error": "Agent not initialized"}) + "\n"
         return
 
-    if session_id not in sessions:
-        sessions[session_id] = []
+    redis_key = f"session:{session_id}"
+    
+    raw_history = redis_client.get(redis_key)
+    if raw_history:
+        try:
+            chat_history = messages_from_dict(json.loads(raw_history))
+        except Exception as e:
+            print(f"Error loading history for {session_id}: {e}")
+            chat_history = []
+    else:
+        chat_history = []
 
-    chat_history = sessions[session_id]
     messages = [SYSTEM_MESSAGE] + chat_history + [HumanMessage(content=user_input)]
     
     try:
         while True:
             full_response = None
             
-            # Stream Parsing State
             buffer = ""
             is_thinking = False
             
@@ -205,45 +297,41 @@ async def chat_generator(user_input: str, session_id: str):
                 continue
             
             else:
-                sessions[session_id].append(HumanMessage(content=user_input))
-                sessions[session_id].append(AIMessage(content=str(full_response.content)))
+                chat_history.append(HumanMessage(content=user_input))
+                chat_history.append(AIMessage(content=str(full_response.content)))
+                
+                try:
+                    serialized_history = json.dumps(messages_to_dict(chat_history))
+                    redis_client.setex(redis_key, 86400, serialized_history)
+                except Exception as e:
+                    print(f"Error saving history to Redis: {e}")
+                    
                 break
 
     except Exception as e:
         print(f"Error processing chat: {e}")
         yield json.dumps({"type": "error", "content": str(e)}) + "\n"
 
-# Initialize RAG Processor
 GROQ_API_KEYS = []
 if os.getenv("GROQ_API_KEYS"):
     GROQ_API_KEYS = os.getenv("GROQ_API_KEYS", "").split(",")
 
 rag_processor = RagProcessor(GROQ_API_KEYS)
 
-@app.get("/admin/documents")
+@app.get("/admin/documents", dependencies=[Depends(get_admin_user)])
 async def list_documents(page: int = 1, limit: int = 20, search: str = None):
-    retriever = get_retriever()
     if not retriever:
         raise HTTPException(status_code=500, detail="Retriever not initialized")
     
-    docs = []
     store = retriever.docstore
     
-    # Get all keys first
     all_keys = list(store.yield_keys())
-    
-    # If search is active, we must retrieve all to filter (inefficient but necessary for KV store)
-    # Optimization: For very large datasets, we'd need a secondary index (SQLite/ES).
     current_docs = []
     
-    # Batch get all documents
-    # Note: store.mget might consume memory if 1000s of large docs. 
-    # But for <1000 docs it's fine.
     retrieved_docs = store.mget(all_keys)
     
     for i, doc in enumerate(retrieved_docs):
         if doc:
-            # Filter if search term exists
             if search:
                 search_lower = search.lower()
                 title_match = search_lower in doc.metadata.get("title", "").lower()
@@ -274,24 +362,21 @@ async def list_documents(page: int = 1, limit: int = 20, search: str = None):
         "pages": (total_docs + limit - 1) // limit if limit > 0 else 1
     }
 
-@app.post("/admin/parse-pdf")
+@app.post("/admin/parse-pdf", dependencies=[Depends(get_admin_user)])
 async def parse_pdf(file: UploadFile = File(...)):
     temp_file = f"temp_{uuid.uuid4()}.pdf"
     try:
         with open(temp_file, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
             
-        # 1. Base Text Extraction (PyMuPDF)
         print("Extracting base text with pymupdf4llm...")
         md_text = pymupdf4llm.to_markdown(temp_file)
         
-        # 2. Advanced Table Extraction (GMFT)
         try:
             print("Extracting tables with GMFT...")
             from gmft.pdf_bindings import PyPDFium2Document
             from gmft.auto import AutoTableFormatter
             
-            # Initialize (downloads model on first run)
             doc_gmft = PyPDFium2Document(temp_file)
             formatter = AutoTableFormatter()
             tables = formatter.extract(doc_gmft)
@@ -299,8 +384,6 @@ async def parse_pdf(file: UploadFile = File(...)):
             if tables:
                 table_mds = []
                 for table in tables:
-                    # Convert to markdown using pandas
-                    # content is usually a DataFrame
                     df = table.df
                     if not df.empty:
                         table_mds.append(df.to_markdown(index=False))
@@ -316,7 +399,6 @@ async def parse_pdf(file: UploadFile = File(...)):
 
         except Exception as e:
             print(f"GMFT table extraction failed (using base text only): {e}")
-            # Continue with just base text
         
         os.remove(temp_file)
         return {"text": md_text}
@@ -325,17 +407,14 @@ async def parse_pdf(file: UploadFile = File(...)):
             os.remove(temp_file)
         raise HTTPException(status_code=500, detail=f"PDF Parsing failed: {str(e)}")
 
-@app.post("/admin/documents")
+@app.post("/admin/documents", dependencies=[Depends(get_admin_user)])
 async def add_document(doc: AdminDocument, process: bool = False):
-    retriever = get_retriever()
     if not retriever:
         raise HTTPException(status_code=500, detail="Retriever not initialized")
     
-    # DEBUG LOGGING
     with open("debug_requests.log", "a") as f:
         f.write(f"[{uuid.uuid4()}] add_document called. Process: {process}. ID provided: {doc.id}. Title: {doc.title}\n")
     
-    # If ID is not provided, generate one
     doc_id = doc.id if doc.id else str(uuid.uuid4())
     
     final_content = doc.content
@@ -358,46 +437,27 @@ async def add_document(doc: AdminDocument, process: bool = False):
         page_content=final_content,
         metadata=final_metadata
     )
-    
-    print(f"DEBUG: Adding document id={doc_id} type={type(doc_id)}")
-    print(f"DEBUG: new_doc content length={len(new_doc.page_content)}")
-    print(f"DEBUG: docs_list len={len([new_doc])} ids_list len={len([doc_id])}")
 
-    # Explicit validation
     if len([new_doc]) != len([doc_id]):
-         print("CRITICAL ERROR: Document and ID list lengths do not match!")
          raise HTTPException(status_code=500, detail="Internal Error: Document/ID mismatch preprocessing.")
-
-    # Updated: Let ParentDocumentRetriever generate/manage IDs internally to avoid mismatch issues
-    # when documents are split.
     try:
-        # Try async method if available, defaulting to sync
         if hasattr(retriever, 'aadd_documents'):
-            print("DEBUG: Using aadd_documents (async)")
             await retriever.aadd_documents([new_doc])
         else:
-            print("DEBUG: Using add_documents (sync)")
             retriever.add_documents([new_doc])
     except ValueError as ve:
-        print(f"CRITICAL ERROR in add_documents: {ve}")
-        # Validating likely cause
-        # print(f"Docs list: {[new_doc]}")
-        # print(f"IDs list: {[doc_id]}")
         raise HTTPException(status_code=500, detail=f"Retriever Error: {str(ve)}")
     except Exception as e:
-        print(f"UNEXPECTED ERROR in add_documents: {e}")
         raise HTTPException(status_code=500, detail=f"Unexpected Error: {str(e)}")
 
     return {"status": "success", "message": "Document added"}
 
-@app.put("/admin/documents/{doc_id}")
+@app.put("/admin/documents/{doc_id}", dependencies=[Depends(get_admin_user)])
 async def update_document(doc_id: str, doc: AdminDocument, process: bool = False):
-    retriever = get_retriever()
     if not retriever:
         raise HTTPException(status_code=500, detail="Retriever not initialized")
         
     store = retriever.docstore
-    # Verify existence
     existing = store.mget([doc_id])[0]
     if not existing:
          raise HTTPException(status_code=404, detail="Document not found")
@@ -423,38 +483,71 @@ async def update_document(doc_id: str, doc: AdminDocument, process: bool = False
         metadata=final_metadata
     )
     
-    # Clean up old chunks from vectorstore
     try:
-        # ParentDocumentRetriever stores the parent ID in child chunks metadata using id_key
         id_key = getattr(retriever, "id_key", "doc_id")
         retriever.vectorstore.delete(where={id_key: doc_id})
     except Exception as e:
         print(f"Warning: Failed to cleanup vectorstore chunks for {doc_id}: {e}")
 
-    # Delete old parent doc
     store.mdelete([doc_id]) 
     
-    # Add new (stores parent and adds new child chunks)
     retriever.add_documents([new_doc], ids=[doc_id])
     
     return {"status": "success", "message": "Document updated"}
 
-@app.delete("/admin/documents/{doc_id}")
+@app.delete("/admin/documents/all", dependencies=[Depends(get_admin_user)])
+async def delete_all_documents():
+    if not retriever:
+        raise HTTPException(status_code=500, detail="Retriever not initialized")
+    
+    try:
+        try:
+            with psycopg2.connect(POSTGRES_CONNECTION_STRING) as conn:
+                with conn.cursor() as cur:
+                    cur.execute("TRUNCATE TABLE public.doc_store")
+                    print("DEBUG: Truncated public.doc_store")
+                conn.commit()
+        except Exception as pg_e:
+            print(f"Postgres Delete Error: {pg_e}")
+            raise HTTPException(status_code=500, detail=f"Postgres cleanup failed: {pg_e}")
+
+        try:
+            print("DEBUG: Attempting to wipe Chroma...")
+            existing_ids = retriever.vectorstore.get()["ids"]
+            
+            if existing_ids:
+                batch_size = 40000 
+                for i in range(0, len(existing_ids), batch_size):
+                    batch = existing_ids[i:i + batch_size]
+                    retriever.vectorstore.delete(batch)
+                print(f"DEBUG: Deleted {len(existing_ids)} embeddings from Chroma.")
+            else:
+                print("DEBUG: Chroma was already empty.")
+
+        except Exception as chroma_e:
+            print(f"Warning: Failed to cleanup vectorstore: {chroma_e}")
+        
+        return {"status": "success", "message": "All documents deleted from Postgres and Chroma."}
+
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"CRITICAL Error in delete_all_documents: {e}")
+        raise HTTPException(status_code=500, detail=f"Delete all failed: {str(e)}")
+
+@app.delete("/admin/documents/{doc_id}", dependencies=[Depends(get_admin_user)])
 async def delete_document(doc_id: str):
-    retriever = get_retriever()
     if not retriever:
         raise HTTPException(status_code=500, detail="Retriever not initialized")
     
     store = retriever.docstore
     
-    # Clean up chunks from vectorstore
     try:
         id_key = getattr(retriever, "id_key", "doc_id")
         retriever.vectorstore.delete(where={id_key: doc_id})
     except Exception as e:
         print(f"Warning: Failed to cleanup vectorstore chunks for {doc_id}: {e}")
 
-    # Delete from docstore
     store.mdelete([doc_id])
     
     return {"status": "success", "message": "Document deleted"}
@@ -462,9 +555,8 @@ async def delete_document(doc_id: str):
 class DeleteDocumentsRequest(BaseModel):
     ids: list[str]
 
-@app.post("/admin/documents/delete")
+@app.post("/admin/documents/delete", dependencies=[Depends(get_admin_user)])
 async def delete_documents(request: DeleteDocumentsRequest):
-    retriever = get_retriever()
     if not retriever:
         raise HTTPException(status_code=500, detail="Retriever not initialized")
     
@@ -474,24 +566,14 @@ async def delete_documents(request: DeleteDocumentsRequest):
     if not ids_to_delete:
          return {"status": "success", "message": "No documents to delete"}
 
-    # 1. Clean up chunks from vectorstore for ALL docs
     try:
         id_key = getattr(retriever, "id_key", "doc_id")
-        # Most vectorstores support delete by filter/list. 
-        # For simplicity in this specific setup, we iterate. 
-        # Optimization: verify if vectorstore.delete supports 'id_in' or similar if needed.
-        # But 'where' usually implies single match or specific filter logic depending on backend.
-        # Chroma/PGVector often support list of IDs for delete directly if passed as ids argument, 
-        # but here we are deleting by *metadata* ID (the parent ID).
-        
-        # Iterating might be slow for huge batches, but safe for now.
         for doc_id in ids_to_delete:
              retriever.vectorstore.delete(where={id_key: doc_id})
              
     except Exception as e:
         print(f"Warning: Failed to cleanup vectorstore chunks during bulk delete: {e}")
 
-    # 2. Delete from docstore (key-value store usually supports batch)
     try:
         store.mdelete(ids_to_delete)
     except Exception as e:
@@ -500,11 +582,10 @@ async def delete_documents(request: DeleteDocumentsRequest):
     return {"status": "success", "message": f"Deleted {len(ids_to_delete)} documents"}
 
 
-@app.post("/admin/crawl")
+@app.post("/admin/crawl", dependencies=[Depends(get_admin_user)])
 async def trigger_crawl(request: CrawlRequest):
     import subprocess
     try:
-        # Run scrapy as a subprocess
         subprocess.Popen(
             ["scrapy", "crawl", "nitt", "-s", f"CLOSESPIDER_PAGECOUNT={request.pages}"],
             cwd="bablu" 
@@ -513,24 +594,21 @@ async def trigger_crawl(request: CrawlRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/chat")
+@app.post("/chat", dependencies=[Depends(get_current_user)])
 async def chat_endpoint(request: ChatRequest):
     return StreamingResponse(
         chat_generator(request.message, request.session_id), 
         media_type="application/x-ndjson"
     )
 
-@app.get("/admin/redis/queue")
+@app.get("/admin/redis/queue", dependencies=[Depends(get_admin_user)])
 async def get_redis_queue_status():
     try:
         spider_name = "nitt"
-        # Redis keys are bytes or strings. If client is binary, we can pass strings, they get encoded.
         queue_key = f"{spider_name}:requests"
         dupefilter_key = f"{spider_name}:dupefilter"
         start_urls_key = f"{spider_name}:start_urls"
         
-        # Check type of queue to get size correctly
-        # redis_client.type returns bytes e.g. b'zset'
         queue_type = redis_client.type(queue_key)
         queue_size = 0
         queued_urls = []
@@ -539,7 +617,6 @@ async def get_redis_queue_status():
         
         if queue_type == b"zset":
             queue_size = redis_client.zcard(queue_key)
-            # Fetch top 50. Scrapy-Redis PriorityQueue (zset) usually orders by priority (score).
             raw_items = redis_client.zrange(queue_key, 0, 49)
             
         elif queue_type == b"list":
@@ -548,15 +625,11 @@ async def get_redis_queue_status():
         
         processed_count = redis_client.scard(dupefilter_key)
         
-        # Scheduled count (Start URLs waiting to be ingested)
         scheduled_count = redis_client.llen(start_urls_key)
         
-        # Deserialize
         for item in raw_items:
             try:
                 obj = pickle.loads(item)
-                # Scrapy request objects or dicts. 
-                # Our debug script showed they are dicts: {'url': '...', ...}
                 if isinstance(obj, dict) and 'url' in obj:
                     queued_urls.append(obj['url'])
                 elif hasattr(obj, 'url'):
@@ -564,7 +637,6 @@ async def get_redis_queue_status():
                 else:
                     queued_urls.append(str(obj)) 
             except Exception:
-                # Fallback if not pickle or decode error
                 try:
                     queued_urls.append(item.decode('utf-8', errors='ignore'))
                 except:
@@ -586,7 +658,7 @@ async def get_redis_queue_status():
             "queued_urls": []
         }
 
-@app.delete("/admin/redis/queue")
+@app.delete("/admin/redis/queue", dependencies=[Depends(get_admin_user)])
 async def flush_redis_queue():
     try:
         spider_name = "nitt"
@@ -603,14 +675,12 @@ async def flush_redis_queue():
 class AddUrlRequest(BaseModel):
     url: str
 
-@app.post("/admin/redis/queue")
+@app.post("/admin/redis/queue", dependencies=[Depends(get_admin_user)])
 async def add_url_to_queue(request: AddUrlRequest):
     try:
         spider_name = "nitt"
         start_urls_key = f"{spider_name}:start_urls"
         
-        # We push to start_urls. Scrapy-Redis spiders automatically pop from here.
-        # Format: Just the URL string.
         redis_client.lpush(start_urls_key, request.url)
         
         return {"status": "success", "message": f"Added {request.url} to queue"}

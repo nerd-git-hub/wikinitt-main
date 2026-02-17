@@ -101,7 +101,7 @@ func main() {
 		DisplayName:   *name,
 		Avatar:        avatarURL,
 		CreatedAt:     time.Now(),
-		DauthID:       "admin_" + *email,
+		OAuthID:       "admin_" + *email,
 		Gender:        "Unspecified",
 		PhoneNumber:   "",
 		IsBanned:      false,

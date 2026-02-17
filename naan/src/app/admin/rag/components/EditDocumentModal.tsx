@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { CHAT_ENDPOINT } from '@/lib/chat';
+import { useSession } from 'next-auth/react';
 
 interface AdminDocument {
     id: string;
@@ -35,15 +36,20 @@ export default function EditDocumentModal({ document, isOpen, onClose, onUpdate 
         }
     }, [document]);
 
+    const { data: session } = useSession()
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!document) return;
+        if (!document || !session) return;
 
         setLoading(true);
         try {
             const res = await fetch(`${CHAT_ENDPOINT}/admin/documents/${document.id}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.backendToken}`
+                },
                 body: JSON.stringify({
                     id: document.id,
                     title,

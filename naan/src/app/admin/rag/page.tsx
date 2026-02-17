@@ -1,5 +1,6 @@
 "use client"
 import React, { useEffect, useState } from 'react';
+import { useSession } from "next-auth/react";
 import AddDocumentForm from './components/AddDocumentForm';
 import EditDocumentModal from './components/EditDocumentModal';
 import RedisQueueViewer from './components/RedisQueueViewer';
@@ -18,6 +19,7 @@ interface AdminDocument {
 }
 
 export default function RagAdminPage() {
+    const { data: session, status } = useSession();
     const [documents, setDocuments] = useState<AdminDocument[]>([]);
     const [loading, setLoading] = useState(true);
     const [crawlStatus, setCrawlStatus] = useState<string | null>(null);
@@ -49,10 +51,16 @@ export default function RagAdminPage() {
     }, [search]);
 
     const fetchDocuments = async (pageNum = 1) => {
+        if (status !== 'authenticated' || !session?.backendToken) return;
+
         setLoading(true);
         try {
             const query = debouncedSearch ? `&search=${encodeURIComponent(debouncedSearch)}` : '';
-            const res = await fetch(`${CHAT_ENDPOINT}/admin/documents?page=${pageNum}&limit=${LIMIT}${query}`);
+            const res = await fetch(`${CHAT_ENDPOINT}/admin/documents?page=${pageNum}&limit=${LIMIT}${query}`, {
+                headers: {
+                    'Authorization': `Bearer ${session.backendToken}`
+                }
+            });
             if (!res.ok) throw new Error('Failed to fetch documents');
             const data = await res.json();
             setDocuments(data.items);
@@ -69,14 +77,21 @@ export default function RagAdminPage() {
     };
 
     useEffect(() => {
-        fetchDocuments(page);
-    }, [page, debouncedSearch]);
+        if (status === 'authenticated') {
+            fetchDocuments(page);
+        }
+    }, [page, debouncedSearch, status]);
 
     const handleDelete = async (id: string) => {
         if (!confirm('Are you sure you want to delete this document?')) return;
+        if (!session?.backendToken) return;
+
         try {
             const res = await fetch(`${CHAT_ENDPOINT}/admin/documents/${id}`, {
                 method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${session.backendToken}`
+                }
             });
             if (!res.ok) throw new Error('Failed to delete');
             fetchDocuments(page);
@@ -95,11 +110,15 @@ export default function RagAdminPage() {
     const handleBulkDelete = async () => {
         if (selectedIds.size === 0) return;
         if (!confirm(`Are you sure you want to delete ${selectedIds.size} documents?`)) return;
+        if (!session?.backendToken) return;
 
         try {
             const res = await fetch(`${CHAT_ENDPOINT}/admin/documents/delete`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.backendToken}`
+                },
                 body: JSON.stringify({ ids: Array.from(selectedIds) })
             });
 
@@ -112,6 +131,34 @@ export default function RagAdminPage() {
         } catch (err) {
             console.error(err);
             alert('Error deleting documents: ' + err);
+        }
+    };
+
+    const handleDeleteAll = async () => {
+        if (!confirm('CRITICAL WARNING: This will delete ALL documents from the database. This action cannot be undone.\n\nAre you absolutely sure?')) return;
+        if (!confirm('Please confirm one more time: Do you want to wipe the ENTIRE knowledge base?')) return;
+
+        if (!session?.backendToken) return;
+
+        try {
+            const res = await fetch(`${CHAT_ENDPOINT}/admin/documents/all`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${session.backendToken}`
+                }
+            });
+
+            if (!res.ok) throw new Error('Failed to delete all documents');
+
+            const data = await res.json();
+
+            // Clear selection
+            setSelectedIds(new Set());
+            fetchDocuments(1);
+            alert(data.message);
+        } catch (err) {
+            console.error(err);
+            alert('Error deleting all documents: ' + err);
         }
     };
 
@@ -141,11 +188,16 @@ export default function RagAdminPage() {
 
     const handleCrawl = async () => {
         if (!confirm('Start a new crawl? This might take a while.')) return;
+        if (!session?.backendToken) return;
+
         setCrawlStatus('Crawling started...');
         try {
             const res = await fetch(`${CHAT_ENDPOINT}/admin/crawl`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.backendToken}`
+                },
                 body: JSON.stringify({ pages: 20 })
             });
             if (!res.ok) throw new Error('Failed to trigger crawl');
@@ -198,6 +250,13 @@ export default function RagAdminPage() {
                                     Delete Selected ({selectedIds.size})
                                 </Button>
                             )}
+                            <Button
+                                onClick={handleDeleteAll}
+                                variant="destructive"
+                                className="bg-red-800 hover:bg-red-900 text-white ml-2"
+                            >
+                                Delete All
+                            </Button>
                         </div>
                         <AddDocumentForm onAdd={() => fetchDocuments(page)} />
                     </div>

@@ -6,6 +6,7 @@ import { Trash2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CHAT_ENDPOINT } from "@/lib/chat";
+import { useSession } from "next-auth/react";
 
 interface QueueStatus {
     queue_size: number;
@@ -17,21 +18,32 @@ interface QueueStatus {
 export default function RedisQueueViewer() {
     const queryClient = useQueryClient();
     const [newUrl, setNewUrl] = useState("");
+    const { data: session } = useSession()
 
     const { data, isLoading, isError } = useQuery<QueueStatus>({
         queryKey: ["redis-queue"],
         queryFn: async () => {
-            const res = await fetch(`${CHAT_ENDPOINT}/admin/redis/queue`);
+            if (!session) throw new Error("No session");
+            const res = await fetch(`${CHAT_ENDPOINT}/admin/redis/queue`, {
+                headers: {
+                    'Authorization': `Bearer ${session.backendToken}`
+                }
+            });
             if (!res.ok) throw new Error("Failed to fetch queue status");
             return res.json();
         },
         refetchInterval: 2000,
+        enabled: !!session?.backendToken
     });
 
     const flushMutation = useMutation({
         mutationFn: async () => {
+            if (!session) throw new Error("No session");
             const res = await fetch(`${CHAT_ENDPOINT}/admin/redis/queue`, {
                 method: "DELETE",
+                headers: {
+                    'Authorization': `Bearer ${session.backendToken}`
+                }
             });
             if (!res.ok) throw new Error("Failed to flush queue");
             return res.json();
@@ -47,9 +59,13 @@ export default function RedisQueueViewer() {
 
     const addUrlMutation = useMutation({
         mutationFn: async (url: string) => {
+            if (!session) throw new Error("No session");
             const res = await fetch(`${CHAT_ENDPOINT}/admin/redis/queue`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    'Authorization': `Bearer ${session.backendToken}`
+                },
                 body: JSON.stringify({ url }),
             });
             if (!res.ok) throw new Error("Failed to add URL");

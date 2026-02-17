@@ -3,8 +3,6 @@ from typing import Iterator, List, Optional, Sequence, Tuple
 from langchain_core.stores import ByteStore
 
 class PostgresByteStore(ByteStore):
-    """A ByteStore implementation that stores values in a PostgreSQL database."""
-
     def __init__(
         self,
         connection_string: str,

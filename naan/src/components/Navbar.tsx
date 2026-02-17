@@ -23,6 +23,7 @@ import { signIn, useSession, signOut } from "next-auth/react";
 import { GET_ME } from "@/queries/user";
 import { useQuery } from "@tanstack/react-query";
 import { request } from "graphql-request";
+import { googleLogin } from "@/app/actions";
 
 function cn(...inputs: (string | undefined | null | false)[]) {
   return twMerge(clsx(inputs));

@@ -4,6 +4,7 @@ import chromadb
 
 from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
+from sentence_transformers import CrossEncoder
 from utils import RotatingGroqChat
 from pydantic import BaseModel, Field
 from langchain_core.tools import Tool
@@ -17,17 +18,23 @@ from postgres_store import PostgresByteStore
 load_dotenv()
 
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
+RERANKER_MODEL_NAME = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+try:
+    print(f"Loading Reranker: {RERANKER_MODEL_NAME}...")
+    RERANKER_INSTANCE = CrossEncoder(RERANKER_MODEL_NAME)
+    print("Reranker loaded.")
+except Exception as e:
+    print(f"Failed to load Reranker: {e}")
+    RERANKER_INSTANCE = None
+
 GROQ_API_KEYS = os.getenv("GROQ_API_KEYS")
 
-# Postgres & Chroma Settings
-# Postgres & Chroma Settings
 POSTGRES_CONNECTION_STRING = os.getenv('POSTGRES_CONNECTION_STRING', "postgresql://nitt_user:nitt_password@localhost:5432/nitt_rag_store")
 CHROMA_HOST = os.getenv('CHROMA_HOST', "localhost")
 CHROMA_PORT = int(os.getenv('CHROMA_PORT', 8001))
 
 
 def format_docs(docs):
-    """Helper to join retrieved document chunks into a single string."""
     formatted_docs = []
     for doc in docs:
         source = doc.metadata.get("source_url", "Unknown Source")
@@ -68,6 +75,7 @@ def get_retriever():
         docstore=store,
         child_splitter=child_splitter,
         parent_splitter=parent_splitter,
+        search_kwargs={"k": 30}
     )
     return retriever
 
@@ -91,17 +99,50 @@ def get_chat_agent():
         query: str = Field(description="The query to search for information about NIT Trichy.")
 
     def search_nitt_func(query: str):
-        """Searches for information about NIT Trichy."""
-        print(f"   (🔍 Searching: {query})")
-        docs = retriever.invoke(query)
+        print(f"SEARCH_DEBUG: Tool invoked with query: '{query}'")
+        try:
+            docs = retriever.invoke(query)
+            print(f"SEARCH_DEBUG: Retrieved {len(docs) if docs else 0} documents.")
+        except Exception as e:
+            print(f"SEARCH_ERROR: Implementation failed: {e}")
+            return f"INTERNAL ERROR: Search failed due to {e}"
+            
         if not docs:
-            return "No results found. The database does not contain information matching this query."
+            print(f"SEARCH_DEBUG: No results found.")
+            return f"No results found for query: '{query}'. The database does not contain information matching this query."
+        
+        if docs:
+            print(f"SEARCH_DEBUG: Retrieved {len(docs)} documents. Reranking...")
+            
+            try:
+                reranker = RERANKER_INSTANCE
+                if not reranker:
+                    print("SEARCH_WARNING: Reranker not initialized, using lazy load fallback.")
+                    reranker = CrossEncoder(RERANKER_MODEL_NAME)
+                
+                pairs = [[query, doc.page_content] for doc in docs]
+                
+                scores = reranker.predict(pairs)
+                
+                scored_docs = sorted(zip(docs, scores), key=lambda x: x[1], reverse=True)
+                
+                print(f"SEARCH_DEBUG: Top 3 Re-ranked Scores: {[s[1] for s in scored_docs[:3]]}")
+                
+                final_docs = [doc for doc, score in scored_docs[:6]]
+                
+                print(f"SEARCH_DEBUG: Top Result after re-ranking: {final_docs[0].page_content[:100]}...")
+                return format_docs(final_docs)
+                
+            except Exception as e:
+                print(f"SEARCH_WARNING: Re-ranking failed ({e}), falling back to original Top 6.")
+                return format_docs(docs[:6])
+
         return format_docs(docs)
 
     tool = Tool(
         name="search_nitt_data",
         func=search_nitt_func,
-        description="Searches for information about NIT Trichy, courses, events, campus details, and academic regulations. Use this whenever you need factual information about the institute.",
+        description="Searches for information about NIT Trichy. INPUT RULES: 1. Use specific proper nouns (e.g., 'Vasu', 'Uma', 'Hostel Opal'). 2. Do NOT infer context from previous queries unless explicitly asked. 3. If searching for a person, include their department or their other relevant information if known.",
         args_schema=SearchInput
     )
     tools = [tool]

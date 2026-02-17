@@ -19,6 +19,7 @@ services:
       - JWT_SECRET=${JWT_SECRET}
     depends_on:
       - meilisearch
+    restart: unless-stopped
     networks:
       - wikinitt-network
 
@@ -52,10 +53,13 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - GROQ_API_KEYS=${GROQ_API_KEYS}
+      - JWT_SECRET=${JWT_SECRET}
+      - MONGODB_URI=${MONGODB_URI}
     depends_on:
       - postgres
       - chroma
       - redis
+    restart: unless-stopped
     networks:
       - wikinitt-network
 
@@ -75,6 +79,7 @@ services:
       - postgres
       - chroma
       - redis
+    restart: unless-stopped
     networks:
       - wikinitt-network
 
@@ -99,7 +104,7 @@ services:
       - IS_PERSISTENT=TRUE
       - ANONYMIZED_TELEMETRY=False
     volumes:
-      - chroma_data_nitt:/chroma/chroma
+      - chroma_data_nitt:/data
     ports:
       - "8001:8000"
     networks:

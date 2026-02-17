@@ -10,7 +10,6 @@ class RagProcessor:
         self.api_keys = api_keys
         self.current_key_idx = 0
         if not api_keys:
-            # Fallback for when initialized without keys (e.g. from env)
             env_keys = os.getenv("GROQ_API_KEYS")
             if env_keys:
                  self.api_keys = json.loads(env_keys) if isinstance(env_keys, str) and env_keys.startswith('[') else [env_keys]
@@ -32,7 +31,6 @@ class RagProcessor:
         )
 
     def _call_llm_safe(self, prompt):
-        """Executes LLM call with Automatic Key Rotation."""
         if not self.llm:
             raise ValueError("LLM not initialized. Check GROQ_API_KEYS.")
 
@@ -44,13 +42,13 @@ class RagProcessor:
             except Exception as e:
                 error_msg = str(e).lower()
                 if "429" in error_msg or "rate_limit" in error_msg:
-                    logging.warning(f"⚠️ Rate Limit hit on Key #{self.current_key_idx}. Rotating...")
+                    logging.warning(f"Rate Limit hit on Key #{self.current_key_idx}. Rotating...")
                     self.current_key_idx = (self.current_key_idx + 1) % len(self.api_keys)
                     self.llm = self._setup_llm()
                     continue
                 else:
                     raise e
-        raise Exception("❌ ALL API keys are currently rate-limited or exhausted.")
+        raise Exception("ALL API keys are currently rate-limited or exhausted.")
 
     def create_audit_prompt(self, doc_text, url):
         return f"""
@@ -95,14 +93,10 @@ class RagProcessor:
                 clean = clean.replace("```json", "").replace("```", "")
             return json.loads(clean)
         except Exception as e:
-            logging.error(f"❌ JSON Parsing Failed: {e}")
+            logging.error(f"JSON Parsing Failed: {e}")
             return []
 
     def process_document(self, text, url):
-        """
-        Runs the full audit/rewrite/question-generation pipeline on a single document.
-        Returns the final processed text (Rewritten + Questions) or None if filtered out.
-        """
         prompt = self.create_audit_prompt(text, url)
         response = self._call_llm_safe(prompt)
         audit_json = self.parse_json_response(response.content)
@@ -138,7 +132,6 @@ class RotatingGroqChat:
         self.current_key_idx = 0
         
         if not self.api_keys:
-             # Fallback for when initialized without keys (e.g. from env)
             env_keys = os.getenv("GROQ_API_KEYS")
             if env_keys:
                  if isinstance(env_keys, str):
@@ -150,9 +143,6 @@ class RotatingGroqChat:
                     self.api_keys = []
     
     def bind_tools(self, tools):
-        """
-        Binds tools to the agent. Returns a new instance with the tools bound.
-        """
         return RotatingGroqChat(
             api_keys=self.api_keys,
             model_name=self.model_name,
@@ -169,7 +159,7 @@ class RotatingGroqChat:
             api_key=current_key,
             model_name=self.model_name,
             temperature=self.temperature,
-            max_retries=0 # We handle retries manually
+            max_retries=0
         )
         
         if self.tools:
@@ -177,9 +167,6 @@ class RotatingGroqChat:
         return llm
 
     def stream(self, input, config=None, **kwargs):
-        """
-        Streams response from the LLM, rotating keys on rate limit errors.
-        """
         if not self.api_keys:
              raise ValueError("No Groq API keys available to stream.")
 
@@ -188,7 +175,6 @@ class RotatingGroqChat:
         for attempt in range(max_attempts):
             try:
                 llm = self._get_llm()
-                # Yield from the generator
                 for chunk in llm.stream(input, config=config, **kwargs):
                     yield chunk
                 return
@@ -196,20 +182,16 @@ class RotatingGroqChat:
             except Exception as e:
                 logging.warning(f"Error in stream attempt {attempt}: {e}")
                 error_msg = str(e).lower()
-                # Check for rate limit or similar errors (Groq often returns 429)
                 if "429" in error_msg or "rate_limit" in error_msg or "too many requests" in error_msg:
-                    logging.warning(f"⚠️ Rate Limit hit on Key #{self.current_key_idx}. Rotating...")
+                    logging.warning(f"Rate Limit hit on Key #{self.current_key_idx}. Rotating...")
                     self.current_key_idx = (self.current_key_idx + 1) % len(self.api_keys)
                     continue
                 else:
                     raise e
                     
-        raise Exception("❌ ALL API keys are currently rate-limited or exhausted.")
+        raise Exception("ALL API keys are currently rate-limited or exhausted.")
 
     def invoke(self, input, config=None, **kwargs):
-        """
-        Invokes the LLM, rotating keys on rate limit errors.
-        """
         if not self.api_keys:
              raise ValueError("No Groq API keys available to invoke.")
 
@@ -224,9 +206,9 @@ class RotatingGroqChat:
                 logging.warning(f"Error in invoke attempt {attempt}: {e}")
                 error_msg = str(e).lower()
                 if "429" in error_msg or "rate_limit" in error_msg or "too many requests" in error_msg:
-                    logging.warning(f"⚠️ Rate Limit hit on Key #{self.current_key_idx}. Rotating...")
+                    logging.warning(f"Rate Limit hit on Key #{self.current_key_idx}. Rotating...")
                     self.current_key_idx = (self.current_key_idx + 1) % len(self.api_keys)
                     continue
                 else:
                     raise e
-        raise Exception("❌ ALL API keys are currently rate-limited or exhausted.")
+        raise Exception("ALL API keys are currently rate-limited or exhausted.")
