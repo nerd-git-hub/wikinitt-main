@@ -35,7 +35,9 @@ export default function LandingNavbar() {
             </nav>
 
             <div className="flex items-center gap-[25px]">
-                <MapPin className="w-5 h-5 text-[#666] hidden md:block" />
+                <Link href="/map">
+                    <MapPin className="w-5 h-5 text-[#666] hidden md:block" />
+                </Link>
 
                 {status === "unauthenticated" && (
                     <button

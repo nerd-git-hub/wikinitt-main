@@ -184,7 +184,9 @@ export default function Navbar({ children }: { children: React.ReactNode }) {
               </div>
 
               <div className="flex items-center gap-[15px] text-[0.8rem]">
-                <MapPin className="h-4 w-4 text-white" />
+                <Link href="/map">
+                  <MapPin className="h-4 w-4 text-white" />
+                </Link>
 
                 {/* Mounted check applied here */}
                 {mounted ? (
