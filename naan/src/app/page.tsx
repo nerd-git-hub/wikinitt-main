@@ -1,20 +1,69 @@
 "use client";
 
-import Link from "next/link";
+import { useMemo, useState } from "react";
 import { LandingSearch } from "@/components/LandingSearch";
-import {
-  Calendar,
-  MessageCircle,
-  User,
-  Instagram,
-  Linkedin,
-  Mail,
-  ArrowRight,
-  MessageSquare
-} from "lucide-react";
+import { Calendar, MessageCircle, User } from "lucide-react";
 import LandingNavbar from "@/components/LandingNavbar";
+import { useQuery } from "@tanstack/react-query";
+import { request } from "graphql-request";
+import { GET_ARTICLES } from "@/gql/queries";
+import { Query, Article } from "@/gql/graphql";
+import Link from "next/link";
 
 export default function Home() {
+  const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
+
+  const { data: categorySeed } = useQuery({
+    queryKey: ["landing-categories"],
+    queryFn: async () => {
+      const endpoint =
+        process.env.NEXT_PUBLIC_GRAPHQL_API_URL || "http://localhost:8080/query";
+      const data = await request<Query>(endpoint, GET_ARTICLES, {
+        limit: 100,
+        offset: 0,
+      });
+      return data.articles as Article[];
+    },
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const { data: articlesData, isLoading } = useQuery({
+    queryKey: ["landing-articles", selectedCategory],
+    queryFn: async () => {
+      const endpoint =
+        process.env.NEXT_PUBLIC_GRAPHQL_API_URL || "http://localhost:8080/query";
+      const data = await request<Query>(endpoint, GET_ARTICLES, {
+        limit: 12,
+        offset: 0,
+        category: selectedCategory,
+      });
+      return data.articles as Article[];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const categoryOptions = useMemo(() => {
+    const source = categorySeed || articlesData;
+    if (!source || source.length === 0) return ["All"];
+    const categories = Array.from(
+      new Set(
+        source
+          .map((article) => article.category)
+          .filter((c): c is string => Boolean(c)),
+      ),
+    ).sort((a, b) => a.localeCompare(b));
+    return ["All", ...categories];
+  }, [categorySeed, articlesData]);
+
+  const { featuredArticle, listArticles } = useMemo(() => {
+    if (!articlesData || articlesData.length === 0) {
+      return { featuredArticle: null as Article | null, listArticles: [] as Article[] };
+    }
+    const subset = articlesData.slice(0, 4);
+    const [first, ...rest] = subset;
+    return { featuredArticle: first || null, listArticles: rest.slice(0, 3) };
+  }, [articlesData]);
+
   return (
     <div className="relative min-h-screen overflow-x-hidden font-[Manrope,sans-serif] bg-[#fdfcff] text-[#1a1a1a]">
       
@@ -41,96 +90,111 @@ export default function Home() {
 
         {/* --- Categories --- */}
         <section className="flex justify-center gap-3 flex-wrap">
-          <button className="cat-btn active">All Categories</button>
-          <button className="cat-btn">Campus</button>
-          <button className="cat-btn">Academics</button>
-          <button className="cat-btn">Students Life</button>
-          <button className="cat-btn">Hostels</button>
-          <button className="cat-btn">Alumni</button>
+          {categoryOptions.map((label) => (
+            <button
+              key={label}
+              className={`cat-btn ${(!selectedCategory && label === "All") || selectedCategory === label ? "active" : ""}`}
+              onClick={() =>
+                setSelectedCategory(label === "All" ? undefined : label)
+              }
+            >
+              {label}
+            </button>
+          ))}
         </section>
 
         {/* --- Featured Article --- */}
         <section className="flex justify-center mt-5">
           <div className="featured-card group">
             <span className="floating-tag">Featured</span>
-            <img 
-              src="https://images.unsplash.com/photo-1516410303867-c04373208022?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" 
-              alt="Architecture" 
-            />
-            <div className="featured-content">
-              <h2>For the Architecture & Interiors</h2>
-              <p>Los Angeles, United States - Unknown device. And additional description here.</p>
-              <div className="meta-tags">
-                <span className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> Apr 8, 2026</span>
-                <span className="flex items-center gap-1.5"><MessageCircle className="w-3.5 h-3.5" /> 9 Comments</span>
-                <span className="flex items-center gap-1.5"><User className="w-3.5 h-3.5" /> Simon Morris</span>
-              </div>
-            </div>
+            {featuredArticle ? (
+              <Link href={featuredArticle.slug ? `/articles/${featuredArticle.slug}` : "#"} className="block h-full w-full">
+                <img
+                  src={
+                    featuredArticle.thumbnail ||
+                    "https://images.unsplash.com/photo-1516410303867-c04373208022?auto=format&fit=crop&w=800&q=80"
+                  }
+                  alt={featuredArticle.title}
+                />
+                <div className="featured-content">
+                  <h2>{featuredArticle.title}</h2>
+                  <p>{featuredArticle.description || "Tap to read the full story."}</p>
+                  <div className="meta-tags">
+                    <span className="flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5" />{" "}
+                      {new Intl.DateTimeFormat("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      }).format(new Date(featuredArticle.createdAt))}
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <User className="w-3.5 h-3.5" />{" "}
+                      {featuredArticle.author?.name || "WikiNITT"}
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <MessageCircle className="w-3.5 h-3.5" /> Read
+                    </span>
+                  </div>
+                </div>
+              </Link>
+            ) : (
+              <div className="featured-fallback">Loading featured story...</div>
+            )}
           </div>
         </section>
 
         {/* --- Article List --- */}
-        <section className="flex flex-col gap-10 max-w-[600px] mx-auto">
-          
-          <article className="article-item">
-            <img src="https://images.unsplash.com/photo-1526566762798-8fac9c07aa98?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80" alt="Pink Stairs" />
-            <div className="article-text">
-              <div className="date-line">
-                <span>Apr 8, 2026</span>
-                <span className="flex items-center gap-1.5"><User className="w-3.5 h-3.5" /> Maksim Ostroborodov</span>
-              </div>
-              <h3>Pink stairs leading to the sky</h3>
-              <p>In my opinion, UI/UX design is the foundation of a product, its face and soul. You can create an infinitely high-quality heart, and organize the simulation of breathing...</p>
-            </div>
-          </article>
+        <section className="flex flex-col gap-10 max-w-[720px] mx-auto">
+          {isLoading && (
+            <>
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="article-skeleton">
+                  <div className="img" />
+                  <div className="text">
+                    <div className="line w-24" />
+                    <div className="line w-32" />
+                    <div className="line w-52" />
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
 
-          <article className="article-item">
-            <img src="https://images.unsplash.com/photo-1516483638261-f4dbaf036963?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80" alt="Building" />
-            <div className="article-text">
-              <div className="date-line">
-                <span>Apr 8, 2026</span>
-                <span className="flex items-center gap-1.5"><User className="w-3.5 h-3.5" /> Mike Yukhtenko</span>
-              </div>
-              <h3>Building on the corner of the sea</h3>
-              <p>Cognitive bias (also known as "cognitive illusion" or "cognitive distortion") refers to errors in thinking that can lead to incorrect perception and decision-making...</p>
+          {!isLoading && listArticles.length === 0 && (
+            <div className="text-center text-sm text-[#777]">
+              No articles yet. Check back soon.
             </div>
-          </article>
+          )}
 
-          <article className="article-item">
-            <img src="https://images.unsplash.com/photo-1490474418585-ba9bad8fd0ea?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80" alt="Breakfast" />
-            <div className="article-text">
-              <div className="date-line">
-                <span>Apr 8, 2026</span>
-                <span className="flex items-center gap-1.5"><User className="w-3.5 h-3.5" /> Eladio Bloom</span>
+          {listArticles.map((article) => (
+            <Link
+              href={article.slug ? `/articles/${article.slug}` : "#"}
+              className="article-item"
+              key={article.id}
+            >
+              <img
+                src={
+                  article.thumbnail ||
+                  "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=600&q=80"
+                }
+                alt={article.title}
+              />
+              <div className="article-text">
+                <div className="date-line">
+                  <span>{new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date(article.createdAt))}</span>
+                  <span className="flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5" /> {article.author?.name || "WikiNITT"}
+                  </span>
+                </div>
+                <h3>{article.title}</h3>
+                <p>{article.description || "Tap to read the full story."}</p>
               </div>
-              <h3>The color of the sun for breakfast</h3>
-              <p>As is commonly believed, this methodology places the user at the center of the world and focuses on their views and habits. In fact, the product's actual growth revolves around...</p>
-            </div>
-          </article>
-
+            </Link>
+          ))}
         </section>
 
       </main>
-
-      {/* --- Footer --- */}
-      <footer className="border-t border-black/5 py-10 px-[5%] mt-20 flex flex-col md:flex-row justify-between items-center text-[#999] text-[0.85rem] max-w-[1400px] mx-auto gap-5 md:gap-0">
-        <div className="flex flex-col md:flex-row items-center gap-4 md:gap-[30px]">
-          <div>© 2026 NITT. All rights reserved.</div>
-          <div className="flex gap-[15px] text-[1.1rem] text-[#555]">
-            <Instagram className="w-[18px] h-[18px] cursor-pointer hover:text-[#3b28cc] transition-colors" />
-            <Linkedin className="w-[18px] h-[18px] cursor-pointer hover:text-[#3b28cc] transition-colors" />
-            <Mail className="w-[18px] h-[18px] cursor-pointer hover:text-[#3b28cc] transition-colors" />
-          </div>
-        </div>
-        <div className="text-[#333] font-semibold flex items-center cursor-pointer hover:text-[#3b28cc] transition-colors">
-          Contact Us <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
-        </div>
-      </footer>
-
-      {/* --- Floating Chat --- */}
-      <div className="fixed bottom-10 right-10 bg-black text-white w-[60px] h-[60px] rounded-full flex items-center justify-center shadow-[0_10px_30px_rgba(0,0,0,0.15)] cursor-pointer z-[100] transition-transform duration-300 hover:scale-110 hover:rotate-6">
-        <MessageSquare className="w-6 h-6" />
-      </div>
 
       <style jsx global>{`
         @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,500;1,600&display=swap');
@@ -150,18 +214,11 @@ export default function Home() {
           top: -10%;
           left: -10%;
           background: radial-gradient(circle, rgba(169, 196, 255, 0.4) 0%, rgba(255,255,255,0) 70%);
-          animation: floatBlob 10s infinite alternate;
         }
         .bottom-blob {
           top: 10%;
           right: -10%;
           background: radial-gradient(circle, rgba(245, 200, 255, 0.4) 0%, rgba(255,255,255,0) 70%);
-          animation: floatBlob 10s infinite alternate-reverse;
-        }
-
-        @keyframes floatBlob {
-          0% { transform: translate(0, 0) scale(1); }
-          100% { transform: translate(20px, 40px) scale(1.1); }
         }
 
         /* Animations */
@@ -169,15 +226,10 @@ export default function Home() {
           from { opacity: 0; transform: translateY(30px); }
           to { opacity: 1; transform: translateY(0); }
         }
-        @keyframes float {
-          0% { transform: translateY(0px); }
-          50% { transform: translateY(-8px); }
-          100% { transform: translateY(0px); }
-        }
 
         .animate-up {
-          animation: fadeInUp 0.8s ease-out forwards;
-          opacity: 0;
+          animation: none;
+          opacity: 1;
         }
         .delay-1 { animation-delay: 0.1s; }
         .delay-2 { animation-delay: 0.3s; }
@@ -196,7 +248,6 @@ export default function Home() {
           border: 1px solid rgba(255, 255, 255, 0.8);
           border-radius: 40px;
           box-shadow: 0 20px 50px rgba(0, 0, 0, 0.05), inset 0 0 0 2px rgba(255, 255, 255, 0.5), inset 0 0 40px rgba(255, 255, 255, 0.8);
-          animation: float 6s ease-in-out infinite;
           display: flex;
           flex-direction: column;
           align-items: center;
@@ -245,14 +296,14 @@ export default function Home() {
           font-weight: 600;
           font-family: 'Playfair Display', serif;
           letter-spacing: 0.5px;
-          transition: all 0.3s;
+          transition: background-color 0.3s, color 0.3s;
         }
         .cat-btn:not(.active) {
           background-color: rgba(255,255,255,0.5);
           border: 1px solid rgba(0,0,0,0.05);
           color: #666;
         }
-        .cat-btn:hover { transform: translateY(-2px); background: white; }
+        .cat-btn:hover { background: white; }
         .cat-btn.active {
           background-color: var(--primary-blue);
           color: white;
@@ -268,16 +319,12 @@ export default function Home() {
           border-radius: 30px;
           overflow: hidden;
           box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-          transition: transform 0.4s ease;
         }
-        .featured-card:hover { transform: translateY(-5px); }
         .featured-card img {
           width: 100%;
           height: 100%;
           object-fit: cover;
-          transition: transform 0.8s ease;
         }
-        .featured-card:hover img { transform: scale(1.05); }
         .featured-content {
           position: absolute;
           bottom: 0;
@@ -321,15 +368,30 @@ export default function Home() {
           text-transform: uppercase;
           z-index: 2;
         }
+        .featured-fallback {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 100%;
+          height: 100%;
+          background: #f6f6fb;
+          color: #777;
+          font-weight: 600;
+        }
 
         /* Article List */
         .article-item {
           display: flex;
           gap: 30px;
           align-items: flex-start;
-          transition: transform 0.3s;
+          text-decoration: none;
+          color: inherit;
+          transition: transform 0.25s ease;
         }
-        .article-item:hover { transform: translateX(10px); }
+        .article-item:hover h3 {
+          color: var(--primary-blue);
+        }
+        .article-item:hover { transform: translateX(6px); }
         .article-item img {
           width: 150px;
           height: 150px;
@@ -365,6 +427,36 @@ export default function Home() {
           -webkit-line-clamp: 3;
           -webkit-box-orient: vertical;
           overflow: hidden;
+        }
+        .article-skeleton {
+          display: flex;
+          gap: 30px;
+          align-items: center;
+        }
+        .article-skeleton .img {
+          width: 150px;
+          height: 150px;
+          border-radius: 8px;
+          background: linear-gradient(90deg, #f1f1f5 0%, #e6e6ef 50%, #f1f1f5 100%);
+          background-size: 200% 100%;
+          animation: shimmer 1.2s infinite;
+        }
+        .article-skeleton .text {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+        .article-skeleton .line {
+          height: 12px;
+          border-radius: 6px;
+          background: linear-gradient(90deg, #f1f1f5 0%, #e6e6ef 50%, #f1f1f5 100%);
+          background-size: 200% 100%;
+          animation: shimmer 1.2s infinite;
+        }
+        @keyframes shimmer {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
         }
 
         @media (max-width: 768px) {

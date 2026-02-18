@@ -13,21 +13,22 @@ import LogoIcon from "@/components/logo.svg";
 export default function Footer() {
   const pathname = usePathname();
   const isArticleDetail = pathname?.startsWith("/articles/") && pathname !== "/articles";
+  const isLanding = pathname === "/";
 
-if (isArticleDetail) {
+  if (isArticleDetail || isLanding) {
     return (
       <footer className="w-full mt-[60px] bg-[#f3f3ff] border-t border-[#ddd] px-[5%] md:px-[8%] py-[25px] flex flex-col md:flex-row justify-between items-center text-[0.75rem] text-[#777] gap-[20px] md:gap-0 font-[Inter,sans-serif]">
         
         <div className="flex flex-col md:flex-row items-center gap-[10px] md:gap-[20px]">
           <div>© 2026 NITT. All rights reserved.</div>
           <div className="flex gap-[15px] text-[1rem]">
-            <Link href="#" className="hover:text-[#2d2d2d] hover:-translate-y-[2px] transition-all cursor-pointer" aria-label="Website">
+            <Link href="#" className="hover:text-[#2d2d2d] transition-colors cursor-pointer" aria-label="Website">
               <Globe className="w-4 h-4" />
             </Link>
-            <Link href="#" className="hover:text-[#2d2d2d] hover:-translate-y-[2px] transition-all cursor-pointer" aria-label="LinkedIn">
+            <Link href="#" className="hover:text-[#2d2d2d] transition-colors cursor-pointer" aria-label="LinkedIn">
               <Linkedin className="w-4 h-4" />
             </Link>
-            <Link href="#" className="hover:text-[#2d2d2d] hover:-translate-y-[2px] transition-all cursor-pointer" aria-label="Mail">
+            <Link href="#" className="hover:text-[#2d2d2d] transition-colors cursor-pointer" aria-label="Mail">
               <Mail className="w-4 h-4" />
             </Link>
           </div>
@@ -35,10 +36,10 @@ if (isArticleDetail) {
 
         <Link 
           href="/c" 
-          className="flex items-center gap-[8px] cursor-pointer font-medium transition-colors hover:text-[#333] group"
+          className="flex items-center gap-[8px] cursor-pointer font-medium transition-colors hover:text-[#333]"
         >
           Contact Us 
-          <span className="text-[10px] transition-transform duration-300 group-hover:-translate-y-1">▲</span>
+          <span className="text-[10px]">▲</span>
         </Link>
       </footer>
     );

@@ -149,9 +149,7 @@ export default function ArticleView({ data }: { data: Article }) {
 
         </div>
 
-        <div className="fixed md:right-[40px] right-[20px] top-auto bottom-[20px] md:top-[50%] md:-translate-y-1/2 bg-white md:bg-transparent p-[10px] md:p-0 rounded-full md:rounded-none shadow-[0_4px_10px_rgba(0,0,0,0.1)] md:shadow-none text-[#222] text-[1.5rem] cursor-pointer z-100 opacity-100 md:opacity-60 transition-all duration-300 hover:opacity-100 hover:scale-125 md:hover:-translate-y-1/2 flex items-center justify-center">
-          <MessageSquare className="w-6 h-6 md:w-8 md:h-8" />
-        </div>
+        {/* FAB Chat */}
       </main>
 
       <style jsx global>{`

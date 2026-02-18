@@ -1,18 +1,17 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation'; // Import useRouter
+import Link from "next/link";
 import { useSession, signIn } from "next-auth/react";
 import { motion, AnimatePresence } from 'framer-motion';
 import styles from './chat.module.css';
 import { CHAT_ENDPOINT } from '@/lib/chat';
-import { ArrowLeft, Send, Sparkles } from "lucide-react";
+import { Send, Sparkles } from "lucide-react";
 
 const POPULAR_QUESTIONS = [
-  "How to reach NIT Trichy?",
-  "Hostel admission procedure?",
-  "Departments and courses?",
-  "Mess menu details?",
+  "What is a Class Committee?",
+  "What is the attendance requirement at NIT Trichy ?",
+  "What is the assessment pattern ?",
 ];
 
 interface Message {
@@ -27,10 +26,10 @@ interface Message {
 }
 
 export default function ChatPage() {
-  const router = useRouter();
   const { data: session, status } = useSession();
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -208,23 +207,33 @@ export default function ChatPage() {
       {/* Main Chat Area */}
       <div className={styles.main}>
 
-        {/* Header with Back Button */}
+        {/* Header */}
         <div className={styles.header}>
-          <div className={styles.headerLeft}>
-            <button className={styles.backBtn} onClick={() => router.back()} title="Go Back">
-              <ArrowLeft />
-            </button>
-            <div className={styles.headerTitle}>
-              <span style={{ color: '#4f46e5' }}>●</span> NITT Assistant
-            </div>
+          <div className={styles.brand}>WikiNITT</div>
+          <div className={styles.navLinks}>
+            <Link href="/">Homepage</Link>
+            <Link href="/about">About us</Link>
+            <Link href="/contact">Contact us</Link>
           </div>
-
-          {messages.length > 0 && (
-            <button className={styles.newChatBtn} onClick={() => setMessages([])}>
-              <span style={{ marginRight: '6px' }}>+</span> New Chat
+          <div className={styles.headerActions}>
+            <button
+              className={styles.hamburger}
+              aria-label="Toggle navigation"
+              onClick={() => setMobileMenuOpen((p) => !p)}
+            >
+              <span />
+              <span />
+              <span />
             </button>
-          )}
+          </div>
         </div>
+        {mobileMenuOpen && (
+          <div className={styles.mobileMenu}>
+            <Link href="/" onClick={() => setMobileMenuOpen(false)}>Homepage</Link>
+            <Link href="/about" onClick={() => setMobileMenuOpen(false)}>About us</Link>
+            <Link href="/contact" onClick={() => setMobileMenuOpen(false)}>Contact us</Link>
+          </div>
+        )}
 
         <div className={styles.chatScrollArea}>
           <AnimatePresence mode="wait">
@@ -236,17 +245,14 @@ export default function ChatPage() {
                 className={styles.emptyStateContainer}
                 key="empty"
               >
-                <div className={styles.logoWrapper}>
-                  <div className={styles.logoText}>N</div>
-                </div>
-                <h1 className={styles.welcomeHeadline}>Hello, Student</h1>
-                <p className={styles.welcomeSub}>How can I help you with NIT Trichy today?</p>
+                <div className={styles.heroSparkles}>✦ ✦</div>
+                <h1 className={styles.welcomeHeadline}>Ask WikiBot anything</h1>
+                <p className={styles.welcomeSub}>Quick answers about NIT Trichy, academics, hostels, clubs, policies, and more.</p>
 
                 {/* MOST POPULAR QUESTIONS GRID */}
                 <div className={styles.suggestionsGrid}>
                   {POPULAR_QUESTIONS.map((q, i) => (
                     <button key={i} className={styles.suggestionCard} onClick={() => handleSend(q)}>
-                      <div className={styles.cardIcon}><Sparkles /></div>
                       <span className={styles.cardText}>{q}</span>
                     </button>
                   ))}
