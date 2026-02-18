@@ -22,10 +22,10 @@ import { VoteType, Post } from "@/gql/graphql";
 import CommentSection from "./CommentSection";
 import { useState, useEffect } from "react";
 
-const Markdown = dynamic(
-  () => import("@uiw/react-md-editor").then((mod) => mod.default.Markdown),
-  { ssr: false },
-);
+import Markdown from "react-markdown";
+import remarkBreaks from "remark-breaks";
+import rehypeSlug from "rehype-slug";
+import rehypeRaw from "rehype-raw";
 
 const Editor = dynamic(() => import("@/components/Editor"), { ssr: false });
 
@@ -216,7 +216,12 @@ export default function PostView({
             className="prose max-w-none text-gray-800"
             data-color-mode="light"
           >
-            <Markdown source={post.content} />
+            <Markdown
+              remarkPlugins={[remarkBreaks]}
+              rehypePlugins={[rehypeSlug, rehypeRaw]}
+            >
+              {post.content}
+            </Markdown>
           </div>
         </div>
         <div className="bg-gray-50 px-6 py-4 border-t border-gray-100 flex items-center justify-between">
@@ -224,18 +229,16 @@ export default function PostView({
             <div className="flex items-center space-x-2 bg-gray-100 rounded-full px-3 py-1">
               <button
                 onClick={() => handleVote(VoteType.Up)}
-                className={`p-1 rounded hover:bg-gray-200 ${
-                  userVote === VoteType.Up ? "text-orange-500" : "text-gray-500"
-                }`}
+                className={`p-1 rounded hover:bg-gray-200 ${userVote === VoteType.Up ? "text-orange-500" : "text-gray-500"
+                  }`}
               >
                 <ArrowBigUp className="w-6 h-6" />
               </button>
               <span className="font-bold text-gray-700">{voteCount}</span>
               <button
                 onClick={() => handleVote(VoteType.Down)}
-                className={`p-1 rounded hover:bg-gray-200 ${
-                  userVote === VoteType.Down ? "text-blue-500" : "text-gray-500"
-                }`}
+                className={`p-1 rounded hover:bg-gray-200 ${userVote === VoteType.Down ? "text-blue-500" : "text-gray-500"
+                  }`}
               >
                 <ArrowBigDown className="w-6 h-6" />
               </button>

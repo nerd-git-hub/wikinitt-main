@@ -34,13 +34,13 @@ import {
 import { GET_ME } from "@/queries/user";
 import { useRouter } from "next/navigation";
 import { VoteType } from "@/gql/graphql";
-import { request } from "graphql-request";
+
+import Markdown from "react-markdown";
+import remarkBreaks from "remark-breaks";
+import rehypeSlug from "rehype-slug";
+import rehypeRaw from "rehype-raw";
 
 import Editor from "@/components/Editor";
-const Markdown = dynamic(
-  () => import("@uiw/react-md-editor").then((mod) => mod.default.Markdown),
-  { ssr: false },
-);
 
 interface CommentData {
   id: string;
@@ -320,12 +320,11 @@ function CommentItem({
 
   return (
     <div className={`flex gap-2 mt-3 ${depth > 0 ? "mt-2" : ""}`}>
-      {}
+      { }
       <div className="flex flex-col items-center shrink-0">
         <div
-          className={`rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600 overflow-hidden ${
-            depth > 1 ? "w-6 h-6" : "w-6 h-6 sm:w-8 sm:h-8"
-          }`}
+          className={`rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600 overflow-hidden ${depth > 1 ? "w-6 h-6" : "w-6 h-6 sm:w-8 sm:h-8"
+            }`}
         >
           {comment.author.avatar ? (
             <Image
@@ -342,7 +341,7 @@ function CommentItem({
       </div>
 
       <div className="flex-1 min-w-0">
-        {}
+        { }
         <div className="flex items-center gap-1 text-xs text-gray-500 mb-1 flex-wrap">
           <Link
             href={`/u/${comment.author.username}`}
@@ -357,50 +356,52 @@ function CommentItem({
           {comment.isEdited && <span className="text-gray-400">(edited)</span>}
         </div>
 
-        {}
+        { }
         <div
           className="text-sm text-gray-800 mb-2 wrap-break-word"
           data-color-mode="light"
         >
-          <Markdown source={comment.content} />
+          <Markdown
+            remarkPlugins={[remarkBreaks]}
+            rehypePlugins={[rehypeSlug, rehypeRaw]}
+          >
+            {comment.content}
+          </Markdown>
         </div>
 
-        {}
+        { }
         <div className="flex flex-wrap items-center gap-1 text-gray-500 text-xs font-medium">
-          {}
+          { }
           <div className="flex items-center gap-0.5 bg-gray-50 rounded-full px-1 py-0.5">
             <button
               onClick={(e) => handleVote(e, VoteType.Up)}
-              className={`p-0.5 rounded hover:bg-gray-200 transition-colors ${
-                userVote === VoteType.Up ? "text-orange-500" : ""
-              }`}
+              className={`p-0.5 rounded hover:bg-gray-200 transition-colors ${userVote === VoteType.Up ? "text-orange-500" : ""
+                }`}
               disabled={!session}
             >
               <ArrowBigUp className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
             <span
-              className={`min-w-[20px] text-center ${
-                voteCount > 0
-                  ? "text-orange-500"
-                  : voteCount < 0
-                    ? "text-blue-500"
-                    : ""
-              }`}
+              className={`min-w-[20px] text-center ${voteCount > 0
+                ? "text-orange-500"
+                : voteCount < 0
+                  ? "text-blue-500"
+                  : ""
+                }`}
             >
               {voteCount}
             </span>
             <button
               onClick={(e) => handleVote(e, VoteType.Down)}
-              className={`p-0.5 rounded hover:bg-gray-200 transition-colors ${
-                userVote === VoteType.Down ? "text-blue-500" : ""
-              }`}
+              className={`p-0.5 rounded hover:bg-gray-200 transition-colors ${userVote === VoteType.Down ? "text-blue-500" : ""
+                }`}
               disabled={!session}
             >
               <ArrowBigDown className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
 
-          {}
+          { }
           {!atMaxDepth && (
             <button
               onClick={() => setIsReplying(!isReplying)}
@@ -432,7 +433,7 @@ function CommentItem({
           )}
         </div>
 
-        {}
+        { }
         {isReplying && (
           <div className="mt-3" data-color-mode="light">
             <Editor
@@ -459,7 +460,7 @@ function CommentItem({
           </div>
         )}
 
-        {}
+        { }
         {comment.repliesCount > 0 && (
           <ReplyLoader
             commentId={comment.id}
@@ -565,7 +566,7 @@ export default function CommentSection({
 
   return (
     <div className="bg-white p-3 sm:p-4 rounded-lg border border-gray-200 mt-4">
-      {}
+      { }
       <div className="mb-4 sm:mb-6" data-color-mode="light">
         <Editor
           value={newComment}
@@ -586,7 +587,7 @@ export default function CommentSection({
         </div>
       </div>
 
-      {}
+      { }
       <div className="max-h-[600px] overflow-y-auto">
         {comments.length > 0 ? (
           <div className="space-y-1">
