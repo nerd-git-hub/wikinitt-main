@@ -2,7 +2,7 @@ package articles
 
 import (
 	"context"
-	"fmt"
+	"log"
 	"regexp"
 	"strings"
 	"sync"
@@ -18,10 +18,10 @@ func StartBacklinkWorkers(
 	newSlug string,
 	newArticleID string,
 ) {
-	fmt.Println("=== BACKLINK WORKERS STARTED ===")
-	fmt.Println("New title:", newTitle)
-	fmt.Println("New slug:", newSlug)
-	fmt.Println("New article ID:", newArticleID)
+	log.Println("=== BACKLINK WORKERS STARTED ===")
+	log.Println("New title:", newTitle)
+	log.Println("New slug:", newSlug)
+	log.Println("New article ID:", newArticleID)
 
 	go runWorkers(ctx, repo, newTitle, newSlug, newArticleID)
 }
@@ -36,12 +36,12 @@ func runWorkers(
 
 	total, err := repo.CountArticles(ctx)
 	if err != nil {
-		fmt.Println("ERROR counting articles:", err)
+		log.Println("ERROR counting articles:", err)
 		return
 	}
 
 	if total == 0 {
-		fmt.Println("No articles exist. Nothing to process.")
+		log.Println("No articles exist. Nothing to process.")
 		return
 	}
 
@@ -50,9 +50,9 @@ func runWorkers(
 		chunkSize = total
 	}
 
-	fmt.Println("Total articles:", total)
-	fmt.Println("Worker count:", WorkerCount)
-	fmt.Println("Chunk size:", chunkSize)
+	log.Println("Total articles:", total)
+	log.Println("Worker count:", WorkerCount)
+	log.Println("Chunk size:", chunkSize)
 
 	var wg sync.WaitGroup
 
@@ -70,7 +70,7 @@ func runWorkers(
 			break
 		}
 
-		fmt.Println("Launching worker", i, "skip:", skip, "limit:", limit)
+		log.Println("Launching worker", i, "skip:", skip, "limit:", limit)
 
 		wg.Add(1)
 
@@ -93,7 +93,7 @@ func runWorkers(
 
 	wg.Wait()
 
-	fmt.Println("=== ALL WORKERS FINISHED ===")
+	log.Println("=== ALL WORKERS FINISHED ===")
 }
 
 func processChunk(
@@ -107,49 +107,49 @@ func processChunk(
 	workerID int,
 ) {
 
-	fmt.Println("[Worker", workerID, "] Processing chunk skip:", skip, "limit:", limit)
+	log.Println("[Worker", workerID, "] Processing chunk skip:", skip, "limit:", limit)
 
 	articles, err := repo.GetArticlesChunk(ctx, skip, limit)
 	if err != nil {
-		fmt.Println("[Worker", workerID, "] ERROR fetching chunk:", err)
+		log.Println("[Worker", workerID, "] ERROR fetching chunk:", err)
 		return
 	}
 
-	fmt.Println("[Worker", workerID, "] Articles fetched:", len(articles))
+	log.Println("[Worker", workerID, "] Articles fetched:", len(articles))
 
 	for _, article := range articles {
 
-		fmt.Println("[Worker", workerID, "] Checking article:", article.ID)
+		log.Println("[Worker", workerID, "] Checking article:", article.ID)
 
 		// skip the article itself
 		if article.ID == currentArticleID {
-			fmt.Println("[Worker", workerID, "] Skipping self")
+			log.Println("[Worker", workerID, "] Skipping self")
 			continue
 		}
 
-		fmt.Println("[Worker", workerID, "] Original content:", article.Content)
+		log.Println("[Worker", workerID, "] Original content:", article.Content)
 
 		updated := linkSingleTitle(article.Content, title, slug)
 
 		if updated != article.Content {
 
-			fmt.Println("[Worker", workerID, "] MATCH FOUND — updating article:", article.ID)
+			log.Println("[Worker", workerID, "] MATCH FOUND — updating article:", article.ID)
 
 			err := repo.UpdateContent(ctx, article.ID, updated)
 			if err != nil {
-				fmt.Println("[Worker", workerID, "] UPDATE ERROR:", err)
+				log.Println("[Worker", workerID, "] UPDATE ERROR:", err)
 			} else {
-				fmt.Println("[Worker", workerID, "] UPDATE SUCCESS:", article.ID)
+				log.Println("[Worker", workerID, "] UPDATE SUCCESS:", article.ID)
 			}
 
 		} else {
 
-			fmt.Println("[Worker", workerID, "] No match in article:", article.ID)
+			log.Println("[Worker", workerID, "] No match in article:", article.ID)
 
 		}
 	}
 
-	fmt.Println("[Worker", workerID, "] Finished chunk")
+	log.Println("[Worker", workerID, "] Finished chunk")
 }
 
 func linkSingleTitle(content, title, slug string) string {
@@ -165,8 +165,8 @@ func linkSingleTitle(content, title, slug string) string {
 			return match
 		}
 
-		fmt.Println("LINKING:", match, "->", slug)
+		log.Println("LINKING:", match, "->", slug)
 
-		return match + " (" + slug + ")"
+		return "[" + match + "](" + slug + ")"
 	})
 }
