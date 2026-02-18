@@ -8,7 +8,7 @@ export default function LandingNavbar() {
     const { status } = useSession();
 
     return (
-        <header className="flex justify-between items-center px-5 py-5 max-w-[1400px] mx-auto animate-[fadeInUp_0.6s_ease-out] font-[Manrope,sans-serif]">
+        <header className="flex justify-between items-center px-5 py-5 max-w-[1400px] mx-auto font-[Manrope,sans-serif]">
 
             <div className="text-[1.4rem] font-bold tracking-tight text-[#222]">
                 WikiNITT
@@ -40,7 +40,7 @@ export default function LandingNavbar() {
                 {status === "unauthenticated" && (
                     <button
                         onClick={() => signIn("dauth")}
-                        className="bg-white/80 px-[30px] py-[10px] rounded-[30px] text-[#333] text-[0.9rem] font-bold shadow-[0_4px_15px_rgba(0,0,0,0.05)] transition-transform duration-200 hover:scale-105"
+                        className="bg-white/80 px-[30px] py-[10px] rounded-[30px] text-[#333] text-[0.9rem] font-bold shadow-[0_4px_15px_rgba(0,0,0,0.05)]"
                     >
                         Login
                     </button>

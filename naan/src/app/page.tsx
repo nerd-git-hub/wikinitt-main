@@ -228,8 +228,8 @@ export default function Home() {
         }
 
         .animate-up {
-          animation: fadeInUp 0.8s ease-out forwards;
-          opacity: 0;
+          animation: none;
+          opacity: 1;
         }
         .delay-1 { animation-delay: 0.1s; }
         .delay-2 { animation-delay: 0.3s; }
@@ -386,10 +386,12 @@ export default function Home() {
           align-items: flex-start;
           text-decoration: none;
           color: inherit;
+          transition: transform 0.25s ease;
         }
         .article-item:hover h3 {
           color: var(--primary-blue);
         }
+        .article-item:hover { transform: translateX(6px); }
         .article-item img {
           width: 150px;
           height: 150px;
