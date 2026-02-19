@@ -153,8 +153,9 @@ export default function Navbar({ children }: { children: React.ReactNode }) {
   const isAdmin = pathname?.startsWith("/admin");
   const isChat = pathname === "/chat";
   const isArticleDetail = pathname?.startsWith("/articles/") && pathname !== "/articles";
+  const isArticlesListing = pathname === "/articles";
 
-  if (isAdmin || isChat || pathname === "/") {
+  if (isAdmin || isChat || pathname === "/" || isArticlesListing) {
     return <>{children}</>;
   }
 

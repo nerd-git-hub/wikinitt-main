@@ -7,11 +7,9 @@ import { Article, Query } from "@/gql/graphql";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { request } from "graphql-request";
 import { GET_ARTICLES } from "@/gql/queries";
-import { useVirtualizer } from "@tanstack/react-virtual";
+import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import FormattedDate from "@/components/FormattedDate";
-import { Sparkles, Clock, User, ArrowRight } from "lucide-react";
-import { twMerge } from "tailwind-merge";
-import { clsx } from "clsx";
+import { Clock, User, ArrowRight } from "lucide-react";
 
 interface ArticlesViewProps {
   articles: Article[];
@@ -25,6 +23,7 @@ export default function ArticlesView({
   const [selectedCategory, setSelectedCategory] = useState("All");
   const parentRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(1024);
+  const [listOffset, setListOffset] = useState(0);
 
   const categories = [
     "All",
@@ -42,7 +41,7 @@ export default function ArticlesView({
     return data.articles;
   };
 
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage } =
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
     useInfiniteQuery({
       queryKey: ["articles", selectedCategory],
       queryFn: fetchArticles,
@@ -54,9 +53,9 @@ export default function ArticlesView({
       initialData:
         selectedCategory === "All"
           ? {
-              pages: [initialArticles.slice(0, PAGE_SIZE)],
-              pageParams: [0],
-            }
+            pages: [initialArticles.slice(0, PAGE_SIZE)],
+            pageParams: [0],
+          }
           : undefined,
     });
 
@@ -71,11 +70,19 @@ export default function ArticlesView({
   const rowCount =
     Math.ceil(allArticles.length / numColumns) + (hasNextPage ? 1 : 0);
 
-  const rowVirtualizer = useVirtualizer({
+  const isInitialLoading = isLoading && (!data || data.pages.length === 0);
+
+  useEffect(() => {
+    if (parentRef.current) {
+      setListOffset(parentRef.current.offsetTop);
+    }
+  }, []);
+
+  const rowVirtualizer = useWindowVirtualizer({
     count: rowCount,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => 480, // Slightly reduced estimation for cleaner look
+    estimateSize: () => 480,
     overscan: 5,
+    scrollMargin: listOffset,
   });
 
   useEffect(() => {
@@ -83,6 +90,7 @@ export default function ArticlesView({
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
         setContainerWidth(entry.contentRect.width);
+        setListOffset(parentRef.current?.offsetTop ?? 0);
       }
     });
     resizeObserver.observe(parentRef.current);
@@ -106,55 +114,68 @@ export default function ArticlesView({
   ]);
 
   return (
-    <div className="space-y-10">
-      {/* Header Section */}
-      <div className="text-center space-y-4">
-        <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-white/50 backdrop-blur-sm px-4 py-1 text-xs font-bold text-indigo-600 shadow-sm mb-2">
-            <Sparkles className="w-3.5 h-3.5" />
-            Discover Knowledge
-        </div>
-        <h2 className="text-4xl md:text-5xl font-serif font-black text-slate-900 tracking-tight">
-          Explore <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-blue-600">Articles</span>
+    <div className="space-y-10 relative z-10">
+      <div className="text-center space-y-6">
+        <h2 className="text-4xl md:text-[3.5rem] font-[Playfair_Display,serif] text-[#050505] tracking-tight leading-tight">
+          Explore <span className="italic font-semibold text-[#3b28cc]">Knowledge</span>
         </h2>
-        <p className="max-w-2xl mx-auto text-lg text-slate-500 font-light leading-relaxed">
+        <p className="max-w-2xl mx-auto text-[0.95rem] text-[#666] font-[Manrope,sans-serif] leading-relaxed">
           Curated stories, academic resources, and campus guides written by the community.
         </p>
       </div>
 
-      {/* Category Filter Chips */}
-      <div className="flex flex-wrap justify-center gap-3">
+      <div className="flex flex-wrap justify-center gap-3 mt-8">
         {categories.map((category) => (
           <button
             key={category}
             onClick={() => setSelectedCategory(category)}
-            className={twMerge(
-              "px-5 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 border backdrop-blur-md active:scale-95",
-              selectedCategory === category
-                ? "bg-indigo-600 text-white border-indigo-500 shadow-lg shadow-indigo-200"
-                : "bg-white/40 text-slate-600 border-white/60 hover:bg-white/80 hover:border-indigo-200 hover:text-indigo-600 hover:shadow-sm"
-            )}
+            className={`cat-btn ${selectedCategory === category ? "active" : ""}`}
           >
             {category}
           </button>
         ))}
       </div>
 
-      {/* Virtualized Grid */}
-      <div
-        ref={parentRef}
-        className="custom-scrollbar"
-        style={{
-          height: "800px", // Fixed height for virtualizer container
-          width: "100%",
-          overflow: "auto",
-        }}
-      >
+      {/* Loading shimmer grid */}
+      {isInitialLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 lg:gap-8 px-2">
+          {Array.from({ length: 6 }).map((_, idx) => (
+            <div
+              key={idx}
+              className="rounded-[24px] border border-white/80 shadow-[0_10px_40px_rgba(0,0,0,0.04)] bg-white/70 backdrop-blur-xl overflow-hidden"
+            >
+              <div className="h-56 w-full shimmer" />
+              <div className="p-6 space-y-4">
+                <div className="flex gap-2 items-center text-xs font-semibold text-[#888] uppercase tracking-wide">
+                  <div className="h-3 w-16 shimmer rounded-full" />
+                  <div className="h-3 w-10 shimmer rounded-full" />
+                </div>
+                <div className="h-8 w-5/6 shimmer rounded-md" />
+                <div className="h-4 w-4/6 shimmer rounded-md" />
+                <div className="h-4 w-3/6 shimmer rounded-md" />
+                <div className="mt-2 pt-4 border-t border-black/5 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="h-9 w-9 shimmer rounded-full" />
+                    <div className="space-y-2">
+                      <div className="h-3 w-20 shimmer rounded-sm" />
+                      <div className="h-2.5 w-12 shimmer rounded-sm" />
+                    </div>
+                  </div>
+                  <div className="h-9 w-9 shimmer rounded-full" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
         <div
+          ref={parentRef}
           style={{
-            height: `${rowVirtualizer.getTotalSize()}px`,
             width: "100%",
             position: "relative",
+            height: `${rowVirtualizer.getTotalSize()}px`,
           }}
+          className="mt-8"
         >
           {rowVirtualizer.getVirtualItems().map((virtualRow) => {
             const startIndex = virtualRow.index * numColumns;
@@ -172,9 +193,9 @@ export default function ArticlesView({
                   left: 0,
                   width: "100%",
                   height: `${virtualRow.size}px`,
-                  transform: `translateY(${virtualRow.start}px)`,
+                  transform: `translateY(${virtualRow.start - listOffset}px)`,
                 }}
-                className="flex gap-6 lg:gap-8 px-2 pb-6" // Padding for shadow
+                className="flex gap-6 lg:gap-8 px-2 pb-6"
               >
                 {rowArticles.map((article) => (
                   <article
@@ -182,52 +203,48 @@ export default function ArticlesView({
                     style={{
                       width: `calc((100% - ${(numColumns - 1) * 32}px) / ${numColumns})`,
                     }}
-                    className="group flex flex-col h-full bg-white/70 backdrop-blur-xl rounded-3xl border border-white/60 shadow-sm hover:shadow-xl hover:shadow-indigo-900/5 transition-all duration-300 hover:-translate-y-1 overflow-hidden"
+                    className="group flex flex-col h-full bg-white/60 backdrop-blur-xl rounded-[24px] border border-white/80 shadow-[0_10px_40px_rgba(0,0,0,0.04)] hover:shadow-[0_15px_50px_rgba(59,40,204,0.08)] hover:-translate-y-2 transition-all duration-400 overflow-hidden"
                   >
-                    {/* Image Section */}
                     <div className="relative h-56 w-full overflow-hidden">
                       <Image
-                        src={article.thumbnail || "/nitt.jpg"}
+                        src={article.thumbnail || "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=600&q=80"}
                         alt={article.title}
                         fill
                         className="object-cover transition-transform duration-700 group-hover:scale-105"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent opacity-60" />
-                      
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-60" />
+
                       <div className="absolute top-4 left-4">
-                        <span className="inline-block px-3 py-1 text-[10px] font-bold tracking-widest uppercase bg-white/95 backdrop-blur-md text-indigo-700 rounded-lg shadow-sm">
+                        <span className="inline-block px-3 py-1.5 text-[0.7rem] font-bold tracking-widest uppercase bg-white/90 backdrop-blur-md text-[#3b28cc] rounded-full shadow-sm">
                           {article.category}
                         </span>
                       </div>
                     </div>
 
-                    {/* Content Section */}
-                    <div className="p-6 flex-1 flex flex-col">
-                      <div className="flex items-center gap-3 text-xs font-medium text-slate-500 mb-3">
-                        <div className="flex items-center gap-1">
-                            <Clock className="w-3.5 h-3.5 text-indigo-400" />
-                            <FormattedDate date={article.createdAt} />
+                    <div className="p-6 flex-1 flex flex-col font-[Manrope,sans-serif]">
+                      <div className="flex items-center gap-3 text-xs font-semibold text-[#888] mb-3 uppercase tracking-wide">
+                        <div className="flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5" />
+                          <FormattedDate date={article.createdAt} />
                         </div>
-                        <span className="w-1 h-1 rounded-full bg-slate-300" />
-                        <span>5 min read</span>
                       </div>
 
                       <Link
                         href={`/articles/${article.slug}`}
-                        className="block mb-3 group-hover:text-indigo-600 transition-colors duration-200"
+                        className="block mb-3 transition-colors duration-200"
                       >
-                        <h3 className="text-xl font-bold text-slate-900 leading-tight line-clamp-2 font-serif">
+                        <h3 className="text-[1.5rem] font-[Playfair_Display,serif] text-[#222] leading-[1.2] line-clamp-2 group-hover:text-[#3b28cc]">
                           {article.title}
                         </h3>
                       </Link>
 
-                      <p className="text-sm text-slate-500 line-clamp-2 leading-relaxed mb-6 font-light">
-                        {article.description}
+                      <p className="text-[0.9rem] text-[#666] line-clamp-2 leading-[1.6] mb-6 font-normal">
+                        {article.description || "Tap to read the full story."}
                       </p>
 
-                      <div className="mt-auto pt-5 border-t border-slate-100 flex items-center justify-between">
+                      <div className="mt-auto pt-5 border-t border-black/5 flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <div className="relative h-9 w-9 rounded-full overflow-hidden border border-white shadow-sm ring-1 ring-slate-100">
+                          <div className="relative h-9 w-9 rounded-full overflow-hidden border border-white shadow-sm ring-1 ring-black/5">
                             {article.author?.avatar ? (
                               <Image
                                 src={article.author.avatar}
@@ -236,52 +253,80 @@ export default function ArticlesView({
                                 className="object-cover"
                               />
                             ) : (
-                              <div className="w-full h-full bg-indigo-50 flex items-center justify-center text-indigo-600">
+                              <div className="w-full h-full bg-[#f0f0fa] flex items-center justify-center text-[#3b28cc]">
                                 <User className="w-4 h-4" />
                               </div>
                             )}
                           </div>
                           <div className="flex flex-col">
-                            <span className="text-xs font-bold text-slate-800">
-                                {article.author?.name || "Unknown"}
+                            <span className="text-xs font-bold text-[#333]">
+                              {article.author?.name || "WikiNITT"}
                             </span>
-                            <span className="text-[10px] text-slate-400 font-medium">Author</span>
+                            <span className="text-[10px] text-[#888] font-semibold uppercase">Author</span>
                           </div>
                         </div>
 
-                        <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-indigo-600 group-hover:text-white transition-all duration-300">
-                            <ArrowRight className="w-4 h-4" />
+                        <div className="w-9 h-9 rounded-full bg-[#f8f8fb] flex items-center justify-center text-[#666] group-hover:bg-[#3b28cc] group-hover:text-white transition-all duration-300">
+                          <ArrowRight className="w-4 h-4" />
                         </div>
                       </div>
                     </div>
                   </article>
                 ))}
-                
+
                 {isFetchingNextPage && virtualRow.index === rowCount - 1 && (
                   <div className="absolute bottom-0 w-full flex justify-center items-center py-4">
-                     <span className="text-sm text-indigo-500 font-medium animate-pulse">Loading more stories...</span>
+                    <span className="text-sm text-[#3b28cc] font-medium animate-pulse">Loading more stories...</span>
                   </div>
                 )}
               </div>
             );
           })}
         </div>
-      </div>
-      
-      {/* Scrollbar Styles */}
+      )}
+
       <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 6px;
+        @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,500;1,600&display=swap');
+
+        :root {
+          --primary-blue: #3b28cc;
         }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: rgba(0,0,0,0.02);
+
+        .cat-btn {
+          padding: 10px 24px;
+          border-radius: 30px;
+          font-size: 0.9rem;
+          cursor: pointer;
+          font-weight: 600;
+          font-family: 'Playfair Display', serif;
+          letter-spacing: 0.5px;
+          transition: background-color 0.3s, color 0.3s, transform 0.2s;
         }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(99, 102, 241, 0.2);
-          border-radius: 10px;
+        .cat-btn:not(.active) {
+          background-color: rgba(255,255,255,0.6);
+          border: 1px solid rgba(0,0,0,0.05);
+          color: #666;
+          backdrop-filter: blur(10px);
         }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: rgba(99, 102, 241, 0.4);
+        .cat-btn:hover:not(.active) { 
+          background: white; 
+          transform: translateY(-2px);
+        }
+        .cat-btn.active {
+          background-color: var(--primary-blue);
+          color: white;
+          box-shadow: 0 5px 15px rgba(59, 40, 204, 0.2);
+        }
+        .shimmer {
+          position: relative;
+          overflow: hidden;
+          background: linear-gradient(90deg, #f1f1f5 0%, #e6e6ef 50%, #f1f1f5 100%);
+          background-size: 200% 100%;
+          animation: shimmer 1.2s infinite;
+        }
+        @keyframes shimmer {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
         }
       `}</style>
     </div>

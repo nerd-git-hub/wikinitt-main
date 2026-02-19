@@ -13,7 +13,7 @@ import Link from "next/link";
 export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
 
-  const { data: categorySeed } = useQuery({
+  const { data: categorySeed, isLoading: isLoadingCategories } = useQuery({
     queryKey: ["landing-categories"],
     queryFn: async () => {
       const endpoint =
@@ -27,7 +27,7 @@ export default function Home() {
     staleTime: 10 * 60 * 1000,
   });
 
-  const { data: articlesData, isLoading } = useQuery({
+  const { data: articlesData, isLoading: isLoadingArticles } = useQuery({
     queryKey: ["landing-articles", selectedCategory],
     queryFn: async () => {
       const endpoint =
@@ -90,17 +90,25 @@ export default function Home() {
 
         {/* --- Categories --- */}
         <section className="flex justify-center gap-3 flex-wrap">
-          {categoryOptions.map((label) => (
-            <button
-              key={label}
-              className={`cat-btn ${(!selectedCategory && label === "All") || selectedCategory === label ? "active" : ""}`}
-              onClick={() =>
-                setSelectedCategory(label === "All" ? undefined : label)
-              }
-            >
-              {label}
-            </button>
-          ))}
+          {isLoadingCategories && (!categorySeed || categorySeed.length === 0) ? (
+            <>
+              {[1, 2, 3, 4, 5].map((i) => (
+                <span key={i} className="cat-btn skeleton-pill" />
+              ))}
+            </>
+          ) : (
+            categoryOptions.map((label) => (
+              <button
+                key={label}
+                className={`cat-btn ${(!selectedCategory && label === "All") || selectedCategory === label ? "active" : ""}`}
+                onClick={() =>
+                  setSelectedCategory(label === "All" ? undefined : label)
+                }
+              >
+                {label}
+              </button>
+            ))
+          )}
         </section>
 
         {/* --- Featured Article --- */}
@@ -138,6 +146,20 @@ export default function Home() {
                   </div>
                 </div>
               </Link>
+            ) : isLoadingArticles ? (
+              <div className="featured-skeleton">
+                <div className="featured-img shimmer" />
+                <div className="featured-overlay" />
+                <div className="featured-text">
+                  <div className="line w-2/3" />
+                  <div className="line w-1/2" />
+                  <div className="meta">
+                    <div className="pill w-20" />
+                    <div className="pill w-16" />
+                    <div className="pill w-14" />
+                  </div>
+                </div>
+              </div>
             ) : (
               <div className="featured-fallback">Loading featured story...</div>
             )}
@@ -146,22 +168,22 @@ export default function Home() {
 
         {/* --- Article List --- */}
         <section className="flex flex-col gap-10 max-w-[720px] mx-auto">
-          {isLoading && (
+          {isLoadingArticles && (
             <>
               {[1, 2, 3].map((i) => (
                 <div key={i} className="article-skeleton">
-                  <div className="img" />
+                  <div className="img shimmer" />
                   <div className="text">
-                    <div className="line w-24" />
-                    <div className="line w-32" />
-                    <div className="line w-52" />
+                    <div className="line w-24 shimmer" />
+                    <div className="line w-32 shimmer" />
+                    <div className="line w-52 shimmer" />
                   </div>
                 </div>
               ))}
             </>
           )}
 
-          {!isLoading && listArticles.length === 0 && (
+          {!isLoadingArticles && listArticles.length === 0 && (
             <div className="text-center text-sm text-[#777]">
               No articles yet. Check back soon.
             </div>
@@ -303,6 +325,16 @@ export default function Home() {
           border: 1px solid rgba(0,0,0,0.05);
           color: #666;
         }
+        .skeleton-pill {
+          width: 110px;
+          height: 38px;
+          border-radius: 30px;
+          border: none;
+          background: linear-gradient(90deg, #f1f1f5 0%, #e6e6ef 50%, #f1f1f5 100%);
+          background-size: 200% 100%;
+          animation: shimmer 1.2s infinite;
+          cursor: default;
+        }
         .cat-btn:hover { background: white; }
         .cat-btn.active {
           background-color: var(--primary-blue);
@@ -378,6 +410,51 @@ export default function Home() {
           color: #777;
           font-weight: 600;
         }
+        .featured-skeleton {
+          position: relative;
+          width: 100%;
+          height: 100%;
+          overflow: hidden;
+        }
+        .featured-img {
+          width: 100%;
+          height: 100%;
+          border-radius: 0;
+        }
+        .featured-overlay {
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(to top, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0) 60%);
+        }
+        .featured-text {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          width: 100%;
+          padding: 40px;
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+        }
+        .featured-text .line {
+          height: 18px;
+          border-radius: 8px;
+          background: linear-gradient(90deg, #f1f1f5 0%, #e6e6ef 50%, #f1f1f5 100%);
+          background-size: 200% 100%;
+          animation: shimmer 1.2s infinite;
+        }
+        .featured-text .meta {
+          display: flex;
+          gap: 12px;
+          align-items: center;
+        }
+        .featured-text .pill {
+          height: 10px;
+          border-radius: 999px;
+          background: linear-gradient(90deg, #f1f1f5 0%, #e6e6ef 50%, #f1f1f5 100%);
+          background-size: 200% 100%;
+          animation: shimmer 1.2s infinite;
+        }
 
         /* Article List */
         .article-item {
@@ -450,6 +527,11 @@ export default function Home() {
         .article-skeleton .line {
           height: 12px;
           border-radius: 6px;
+          background: linear-gradient(90deg, #f1f1f5 0%, #e6e6ef 50%, #f1f1f5 100%);
+          background-size: 200% 100%;
+          animation: shimmer 1.2s infinite;
+        }
+        .shimmer {
           background: linear-gradient(90deg, #f1f1f5 0%, #e6e6ef 50%, #f1f1f5 100%);
           background-size: 200% 100%;
           animation: shimmer 1.2s infinite;

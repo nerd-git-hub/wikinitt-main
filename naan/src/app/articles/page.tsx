@@ -2,6 +2,7 @@ import FeaturedCarousel from "@/components/FeaturedCarousel";
 export const dynamic = "force-dynamic";
 
 import ArticlesView from "@/components/ArticlesView";
+import LandingNavbar from "@/components/LandingNavbar";
 import { request } from "graphql-request";
 import { GET_ARTICLES } from "@/gql/queries";
 import { Query } from "@/gql/graphql";
@@ -42,26 +43,27 @@ export default async function ArticlesPage() {
   ]);
 
   return (
-    <div className="relative min-h-screen font-sans antialiased text-slate-900 selection:bg-indigo-100 selection:text-indigo-900 overflow-x-hidden">
+    <div className="relative min-h-screen overflow-x-hidden font-[Manrope,sans-serif] bg-[#fdfcff] text-[#1a1a1a]">
       
-      {/* === BACKGROUND MESH === */}
-      <div className="fixed inset-0 z-[-1] pointer-events-none overflow-hidden bg-[#f4f7fa]">
-        <div className="absolute top-[-50%] left-[-20%] w-[80%] h-[80%] rounded-full bg-blue-100/50 blur-[100px]" />
-        <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] rounded-full bg-indigo-100/50 blur-[100px]" />
-        <div className="absolute inset-0 opacity-[0.03] bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
-      </div>
+      {/* Background Ambient Blobs */}
+      <div className="absolute w-[60vw] h-[60vh] z-0 pointer-events-none top-[-10%] left-[-10%] bg-[radial-gradient(circle,rgba(169,196,255,0.4)_0%,rgba(255,255,255,0)_70%)]"></div>
+      <div className="absolute w-[60vw] h-[60vh] z-0 pointer-events-none top-[10%] right-[-10%] bg-[radial-gradient(circle,rgba(245,200,255,0.4)_0%,rgba(255,255,255,0)_70%)]"></div>
 
-      <div className="relative z-10 max-w-[1440px] mx-auto py-24 px-4 sm:px-6 lg:px-8 space-y-16">
+      <LandingNavbar />
+
+      <main className="relative z-10 max-w-[1440px] mx-auto py-10 px-4 sm:px-6 lg:px-8 space-y-16">
         {/* Featured Section */}
-        <section>
-             <FeaturedCarousel articles={featuredArticles} />
-        </section>
+        {featuredArticles.length > 0 && (
+          <section>
+              <FeaturedCarousel articles={featuredArticles} />
+          </section>
+        )}
         
         {/* Main Grid Section */}
         <section>
             <ArticlesView articles={articles} />
         </section>
-      </div>
+      </main>
     </div>
   );
 }
