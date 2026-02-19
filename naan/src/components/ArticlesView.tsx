@@ -218,18 +218,13 @@ export default function ArticlesView({
                     <div className="mt-auto pt-5 border-t border-slate-100 flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className="relative h-9 w-9 rounded-full overflow-hidden border border-white shadow-sm ring-1 ring-slate-100">
-                          {article.author?.avatar ? (
-                            <Image
-                              src={article.author.avatar}
-                              alt={article.author.name}
-                              fill
-                              className="object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full bg-indigo-50 flex items-center justify-center text-[#3b28cc]">
-                              <User className="w-4 h-4" />
-                            </div>
-                          )}
+                          <Image
+                            src={article.author?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(article.author?.name || 'anonymous')}`}
+                            alt={article.author?.name || "Author"}
+                            fill
+                            className="object-cover"
+                            unoptimized
+                          />
                         </div>
                         <div className="flex flex-col">
                           <span className="text-xs font-bold text-[#222]">
