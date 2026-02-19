@@ -17,7 +17,7 @@ export default function Footer() {
     return (
       <div id="footer">
         <hr className="border-t border-[#c8c6d8] opacity-50" />
-        <footer className="w-full px-[5%] md:px-[8%] h-[110px] box-border flex flex-col md:flex-row justify-between items-center gap-[20px]" style={{ background: "rgba(237, 236, 255, 1)", fontFamily: "'Lato', sans-serif", fontWeight: 400, fontSize: "16px", lineHeight: "100%", letterSpacing: "0%", textAlign: "center", color: "rgba(89, 89, 89, 1)" }}>
+        <footer className="w-full px-[5%] md:px-[8%] py-6 md:py-8 box-border flex flex-col md:flex-row justify-between items-center gap-[16px] md:gap-[20px]" style={{ background: "rgba(237, 236, 255, 1)", fontFamily: "'Lato', sans-serif", fontWeight: 400, fontSize: "16px", lineHeight: "100%", letterSpacing: "0%", textAlign: "center", color: "rgba(89, 89, 89, 1)" }}>
           <div className="flex flex-col md:flex-row items-center gap-[10px] md:gap-[20px]">
             <div>© 2026 NITT. All rights reserved.</div>
             <div className="flex gap-[15px] text-[1rem] items-center">

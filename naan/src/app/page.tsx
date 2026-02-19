@@ -167,7 +167,7 @@ export default function Home() {
                   />
                   <div className="featured-content">
                     <h2>{featuredArticle.title}</h2>
-                    <p>{featuredArticle.description || "Tap to read the full story."}</p>
+                    <p>{getArticleExcerpt(featuredArticle)}</p>
                     <div className="meta-tags">
                       <span className="flex items-center gap-1.5">
                         <Calendar className="w-3.5 h-3.5" />{" "}
@@ -344,11 +344,11 @@ export default function Home() {
           left: 0;
           width: 100%;
           padding: 40px;
-          background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0) 100%);
+          background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.5) 50%, rgba(0,0,0,0) 100%);
           color: white;
         }
-        .featured-content h2 { font-family: 'Playfair Display', serif; font-size: 2.2rem; font-weight: 500; margin-bottom: 15px; }
-        .featured-content p { font-size: 0.95rem; opacity: 0.9; margin-bottom: 20px; font-weight: 300; }
+        .featured-content h2 { font-family: 'Kaisei Decol', serif; font-size: 2.2rem; font-weight: 500; margin-bottom: 15px; }
+        .featured-content p { font-family: 'Lato', sans-serif; font-weight: 300; font-size: 0.95rem; opacity: 0.9; margin-bottom: 20px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
         .meta-tags { display: flex; gap: 20px; font-size: 0.8rem; opacity: 0.8; font-weight: 500; }
         .floating-tag {
           position: absolute;
@@ -380,11 +380,39 @@ export default function Home() {
         @keyframes shimmer { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
 
         @media (max-width: 768px) {
-          .hero-title { font-size: 2rem; }
-          .hero-glass-card { padding: 40px 24px; }
+          .hero-title { font-size: 2.5rem; margin-bottom: 30px; }
+          .hero-glass-card { padding: 50px 24px; border-radius: 28px; }
+          .tag-pill { padding: 10px 24px; font-size: 0.6rem; margin-bottom: 20px; }
+          .hero-search-wrapper { max-width: 100%; height: 54px; }
+          .hero-search-wrapper button { padding: 10px 20px; font-size: 0.8rem; }
+          .featured-card { max-width: 100%; aspect-ratio: auto; height: 420px; border-radius: 20px; }
+          .featured-content { padding: 24px; }
+          .featured-content h2 { font-size: 1.5rem; margin-bottom: 10px; }
+          .featured-content p { font-size: 0.85rem; margin-bottom: 12px; }
+          .meta-tags { gap: 12px; font-size: 0.7rem; flex-wrap: wrap; }
+          .floating-tag { top: 16px; left: 16px; padding: 5px 12px; font-size: 0.65rem; }
           .article-item { flex-direction: column; gap: 15px; }
-          .article-item img { width: 100%; height: 250px; }
-          .featured-card { height: 500px; }
+          .article-item img { width: 100%; height: 220px; }
+          .article-text h3 { font-size: 20px; }
+          .article-text p { font-size: 0.85rem; }
+          .date-line { font-size: 0.65rem; gap: 10px; }
+          .cat-btn { padding: 8px 20px; font-size: 0.8rem; }
+          .article-skeleton { flex-direction: column; }
+          .article-skeleton .img { width: 100%; height: 180px; }
+        }
+
+        @media (max-width: 480px) {
+          .hero-title { font-size: 1.8rem; letter-spacing: -0.5px; margin-bottom: 24px; }
+          .hero-glass-card { padding: 36px 18px; border-radius: 24px; }
+          .tag-pill { padding: 8px 18px; font-size: 0.55rem; letter-spacing: 1.5px; margin-bottom: 16px; }
+          .hero-search-wrapper { height: 48px; }
+          .hero-search-wrapper input { font-size: 0.8rem; padding: 0 8px; }
+          .hero-search-wrapper button { padding: 8px 14px; font-size: 0.75rem; }
+          .featured-card { height: 340px; border-radius: 16px; }
+          .featured-content h2 { font-size: 1.2rem; }
+          .featured-content p { font-size: 0.8rem; }
+          .article-text h3 { font-size: 18px; }
+          .cat-btn { padding: 7px 16px; font-size: 0.75rem; }
         }
       `}</style>
     </div>
