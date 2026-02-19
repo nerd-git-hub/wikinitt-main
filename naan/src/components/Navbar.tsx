@@ -143,9 +143,10 @@ export default function Navbar({ children }: { children: React.ReactNode }) {
   const isLanding = pathname === "/";
   const isArticlesPage = pathname === "/articles";
   const isArticleDetail = pathname?.startsWith("/articles/") && pathname !== "/articles";
+  const isMap = pathname === "/map";
 
-  // Bypass for Landing and Articles List to use LandingNavbar instead
-  if (isAdmin || isChat || isLanding || isArticlesPage) {
+  // Bypass for Landing, Articles List, and Map to use LandingNavbar instead
+  if (isAdmin || isChat || isLanding || isArticlesPage || isMap) {
     return <>{children}</>;
   }
 

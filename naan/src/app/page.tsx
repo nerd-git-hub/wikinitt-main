@@ -365,7 +365,7 @@ export default function Home() {
         .article-item { display: flex; gap: 30px; align-items: flex-start; color: inherit; transition: transform 0.25s ease; }
         .article-item:hover { transform: translateX(6px); }
         .article-item:hover h3 { color: #3b28cc; }
-        .article-item img { width: 150px; height: 150px; object-fit: cover; border-radius: 0; }
+        .article-item img { width: 195px; height: 186px; object-fit: cover; border-radius: 0; }
         .article-text { flex: 1; padding-top: 5px; }
         .date-line { font-size: 0.75rem; color: #888; margin-bottom: 10px; display: flex; gap: 15px; align-items: center; font-weight: 600; text-transform: uppercase; }
         .article-text h3 { font-family: 'Kaisei Decol', serif; font-size: 24px; color: rgba(51, 51, 51, 1); margin-bottom: 12px; line-height: 1.2; transition: color 0.2s; }
