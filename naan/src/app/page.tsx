@@ -10,6 +10,41 @@ import { GET_ARTICLES } from "@/gql/queries";
 import { Query, Article } from "@/gql/graphql";
 import Link from "next/link";
 
+// Helper to strip markdown syntax and get clean text
+function stripMarkdown(text: string): string {
+  return text
+    .replace(/#{1,6}\s?/g, '')
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/\*(.+?)\*/g, '$1')
+    .replace(/_(.+?)_/g, '$1')
+    .replace(/\[(.+?)\]\(.+?\)/g, '$1')
+    .replace(/!\[.*?\]\(.*?\)/g, '')
+    .replace(/`{1,3}[^`]*`{1,3}/g, '')
+    .replace(/^[-*+]\s/gm, '')
+    .replace(/^>\s?/gm, '')
+    .replace(/\n{2,}/g, ' ')
+    .replace(/\n/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+// Get a rich excerpt that fills at least 3-4 lines
+function getArticleExcerpt(article: Article): string {
+  const desc = article.description || '';
+  const content = article.content ? stripMarkdown(article.content) : '';
+
+  // If description is long enough (>120 chars), use it
+  if (desc.length > 120) return desc;
+
+  // Combine description + content excerpt
+  const combined = desc ? `${desc} ${content}` : content;
+  if (combined.length > 0) {
+    return combined.slice(0, 300);
+  }
+
+  return "Discover insights and stories from the NITT campus community. This article explores key topics, events, and knowledge curated by students and faculty for a deeper understanding of campus life.";
+}
+
 export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
   const [heroSearchOpen, setHeroSearchOpen] = useState(false);
@@ -173,28 +208,31 @@ export default function Home() {
               <div className="text-center text-sm text-[#777]">No articles yet. Check back soon.</div>
             )}
 
-            {listArticles.map((article) => (
-              <Link
-                href={article.slug ? `/articles/${article.slug}` : "#"}
-                className="article-item"
-                key={article.id}
-              >
-                <img
-                  src={article.thumbnail || "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=600&q=80"}
-                  alt={article.title}
-                />
-                <div className="article-text">
-                  <div className="date-line">
-                    <span>{new Date(article.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
-                    <span className="flex items-center gap-1.5">
-                      <User className="w-3.5 h-3.5" /> {article.author?.displayName || article.author?.name || "WikiNITT"}
-                    </span>
+            {listArticles.map((article, idx) => {
+              const lineClamp = idx % 2 === 0 ? 4 : 3;
+              return (
+                <Link
+                  href={article.slug ? `/articles/${article.slug}` : "#"}
+                  className="article-item"
+                  key={article.id}
+                >
+                  <img
+                    src={article.thumbnail || "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=600&q=80"}
+                    alt={article.title}
+                  />
+                  <div className="article-text">
+                    <div className="date-line">
+                      <span>{new Date(article.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                      <span className="flex items-center gap-1.5">
+                        <User className="w-3.5 h-3.5" /> {article.author?.displayName || article.author?.name || "WikiNITT"}
+                      </span>
+                    </div>
+                    <h3>{article.title}</h3>
+                    <p style={{ WebkitLineClamp: lineClamp }}>{getArticleExcerpt(article)}</p>
                   </div>
-                  <h3>{article.title}</h3>
-                  <p>{article.description || "Tap to read the full story."}</p>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              );
+            })}
           </section>
 
         </main>
@@ -203,7 +241,7 @@ export default function Home() {
       </div>
 
       <style jsx global>{`
-        @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Playfair+Display:ital,wght@0,600;1,600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Kaisei+Decol&family=Lato:wght@300;400&family=Manrope:wght@400;600;700;800&family=Playfair+Display:ital,wght@0,600;1,600&display=swap');
 
         /* Hero Section */
 
@@ -330,8 +368,8 @@ export default function Home() {
         .article-item img { width: 150px; height: 150px; object-fit: cover; border-radius: 0; }
         .article-text { flex: 1; padding-top: 5px; }
         .date-line { font-size: 0.75rem; color: #888; margin-bottom: 10px; display: flex; gap: 15px; align-items: center; font-weight: 600; text-transform: uppercase; }
-        .article-text h3 { font-family: 'Playfair Display', serif; font-size: 1.8rem; color: #222; margin-bottom: 12px; line-height: 1.1; transition: color 0.2s; }
-        .article-text p { font-size: 0.9rem; color: #666; line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+        .article-text h3 { font-family: 'Kaisei Decol', serif; font-size: 24px; color: rgba(51, 51, 51, 1); margin-bottom: 12px; line-height: 1.2; transition: color 0.2s; }
+        .article-text p { font-family: 'Lato', sans-serif; font-weight: 300; font-size: 0.9rem; color: #666; line-height: 1.6; display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
 
         .article-skeleton { display: flex; gap: 30px; align-items: center; }
         .article-skeleton .img { width: 150px; height: 150px; border-radius: 0; background: #f1f1f5; animation: shimmer 1.2s infinite; }

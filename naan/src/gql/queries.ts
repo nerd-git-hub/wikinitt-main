@@ -20,6 +20,7 @@ export const GET_ARTICLES = gql`
       thumbnail
       featured
       description
+      content
       author {
         name
         avatar
