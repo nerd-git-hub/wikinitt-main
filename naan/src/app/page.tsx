@@ -348,7 +348,7 @@ export default function Home() {
           color: white;
         }
         .featured-content h2 { font-family: 'Kaisei Decol', serif; font-size: 2.2rem; font-weight: 500; margin-bottom: 15px; }
-        .featured-content p { font-family: 'Lato', sans-serif; font-weight: 300; font-size: 0.95rem; opacity: 0.9; margin-bottom: 20px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+        .featured-content p { font-family: 'Lato', sans-serif; font-weight: 300; font-size: 0.95rem; opacity: 0.9; margin-bottom: 20px; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
         .meta-tags { display: flex; gap: 20px; font-size: 0.8rem; opacity: 0.8; font-weight: 500; }
         .floating-tag {
           position: absolute;
