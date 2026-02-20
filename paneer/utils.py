@@ -12,7 +12,7 @@ class RagProcessor:
         if not api_keys:
             env_keys = os.getenv("GROQ_API_KEYS")
             if env_keys:
-                 self.api_keys = json.loads(env_keys) if isinstance(env_keys, str) and env_keys.startswith('[') else [env_keys]
+                 self.api_keys = env_keys.split(",")
             else:
                  self.api_keys = []
         
@@ -25,7 +25,7 @@ class RagProcessor:
         current_key = self.api_keys[self.current_key_idx]
         return ChatGroq(
             api_key=current_key, 
-            model_name="meta-llama/llama-4-maverick-17b-128e-instruct", 
+            model_name="llama-3.1-8b-instant", 
             temperature=0,
             max_retries=0
         )

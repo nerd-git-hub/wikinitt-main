@@ -8,11 +8,13 @@ package graph
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/pranava-mohan/wikinitt/gravy/graph/model"
 	"github.com/pranava-mohan/wikinitt/gravy/internal/articles"
 	"github.com/pranava-mohan/wikinitt/gravy/internal/auth"
+	"github.com/pranava-mohan/wikinitt/gravy/internal/rag"
 	"github.com/pranava-mohan/wikinitt/gravy/internal/sanitization"
 	"github.com/pranava-mohan/wikinitt/gravy/internal/users"
 )
@@ -52,13 +54,21 @@ func (r *mutationResolver) CreateArticle(ctx context.Context, input model.NewArt
 	}
 
 	articles.StartBacklinkWorkers(
-    	context.Background(),
+		context.Background(),
 		r.ArticleRepo,
 		created.Title,
 		created.Slug,
 		created.ID,
 	)
 
+	if r.RagClient != nil {
+		go func(a *articles.Article) {
+			event := rag.ArticleToEvent(rag.EventTypeCreate, a)
+			if err := r.RagClient.PushEvent(context.Background(), event); err != nil {
+				log.Printf("Failed to push RAG create event for article %s: %v", a.ID, err)
+			}
+		}(created)
+	}
 
 	created.Author = &users.PublicUser{
 		ID:     user.ID,
@@ -106,6 +116,15 @@ func (r *mutationResolver) UpdateArticle(ctx context.Context, input model.Update
 		return nil, err
 	}
 
+	if r.RagClient != nil {
+		go func(a *articles.Article) {
+			event := rag.ArticleToEvent(rag.EventTypeUpdate, a)
+			if err := r.RagClient.PushEvent(context.Background(), event); err != nil {
+				log.Printf("Failed to push RAG update event for article %s: %v", a.ID, err)
+			}
+		}(updated)
+	}
+
 	author, err := r.UserRepo.GetByID(ctx, updated.AuthorID)
 	if err == nil {
 		updated.Author = &users.PublicUser{
@@ -124,6 +143,18 @@ func (r *mutationResolver) DeleteArticle(ctx context.Context, id string) (bool, 
 	err := r.ArticleRepo.Delete(ctx, id)
 	if err != nil {
 		return false, err
+	}
+
+	if r.RagClient != nil {
+		go func(articleID string) {
+			event := rag.RagEvent{
+				Type:      rag.EventTypeDelete,
+				ArticleID: articleID,
+			}
+			if err := r.RagClient.PushEvent(context.Background(), event); err != nil {
+				log.Printf("Failed to push RAG delete event for article %s: %v", articleID, err)
+			}
+		}(id)
 	}
 	return true, nil
 }

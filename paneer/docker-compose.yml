@@ -20,6 +20,15 @@ services:
     ports:
       - "8001:8000"
 
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
 volumes:
   postgres_data_nitt:
   chroma_data_nitt:
+  redis_data:

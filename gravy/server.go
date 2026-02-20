@@ -21,6 +21,7 @@ import (
 	"github.com/pranava-mohan/wikinitt/gravy/internal/community"
 	"github.com/pranava-mohan/wikinitt/gravy/internal/db"
 	"github.com/pranava-mohan/wikinitt/gravy/internal/maplocation"
+	"github.com/pranava-mohan/wikinitt/gravy/internal/rag"
 	"github.com/pranava-mohan/wikinitt/gravy/internal/ratelimit"
 	"github.com/pranava-mohan/wikinitt/gravy/internal/search"
 	"github.com/pranava-mohan/wikinitt/gravy/internal/uploader"
@@ -91,6 +92,17 @@ func main() {
 	uploaderService, err := uploader.NewUploader(cldName, cldKey, cldSecret)
 	if err != nil {
 		log.Fatalf("Failed to create Cloudinary uploader: %v", err)
+	}
+
+	redisHost := os.Getenv("REDIS_HOST")
+	redisPort := os.Getenv("REDIS_PORT")
+	var ragClient rag.Client
+	if redisHost != "" && redisPort != "" {
+		redisAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
+		ragClient = rag.NewRedisClient(redisAddr, "")
+		log.Printf("Initialized Redis RAG client at %s", redisAddr)
+	} else {
+		log.Println("REDIS_HOST or REDIS_PORT not set, RAG sync disabled")
 	}
 
 	go func() {
@@ -325,6 +337,7 @@ func main() {
 			MapLocationRepo: mapLocationRepo,
 			Uploader:        uploaderService,
 			SearchClient:    searchClient,
+			RagClient:       ragClient,
 		},
 	}
 	c.Directives.Auth = func(ctx context.Context, obj interface{}, next graphql.Resolver, requires *model.Role) (interface{}, error) {

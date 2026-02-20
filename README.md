@@ -96,6 +96,7 @@
 | **Cloudinary**  | Cloud-based image and media management |
 | **Air**         | Live-reload for development            |
 | **Docker**      | Containerized development environment  |
+| **Redis**       | Async Task Queue (RAG Sync)            |
 | **AWS EC2**     | Production Hosting (Backend & Search)  |
 
 ### Frontend (`naan/`)
@@ -257,6 +258,24 @@ wikinitt/
 │MongoDB │    │ Meilisearch│
 │  (DB)  │    │  (Search)  │
 └────────┘    └────────────┘
+
+               ┌─────────────┐
+               │    Redis    │
+               │   (Queue)   │
+               └──────▲──────┘
+                      │
+                      │ (Article Events)
+                      │
+           ┌──────────┴──────────┐
+           │   Paneer Worker     │
+           │  (Python RAG Sync)  │
+           └──────────┬──────────┘
+                      │
+                      ▼
+           ┌─────────────────────┐
+           │      ChromaDB       │
+           │    (Vector Store)   │
+           └─────────────────────┘
 ```
 
 ---

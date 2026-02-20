@@ -17,8 +17,11 @@ services:
       - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
       - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
       - JWT_SECRET=${JWT_SECRET}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
     depends_on:
       - meilisearch
+      - redis
     restart: unless-stopped
     networks:
       - wikinitt-network
@@ -54,6 +57,29 @@ services:
       - REDIS_PORT=6379
       - GROQ_API_KEYS=${GROQ_API_KEYS}
       - JWT_SECRET=${JWT_SECRET}
+      - MONGODB_URI=${MONGODB_URI}
+    depends_on:
+      - postgres
+      - chroma
+      - redis
+    restart: unless-stopped
+    networks:
+      - wikinitt-network
+
+  paneer-worker:
+    build:
+      context: ./paneer
+      dockerfile: Dockerfile
+    container_name: paneer-worker
+    command: python worker.py
+    environment:
+      - ENV=production
+      - POSTGRES_CONNECTION_STRING=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/nitt_rag_store
+      - CHROMA_HOST=chroma
+      - CHROMA_PORT=8000
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - GROQ_API_KEYS=${GROQ_API_KEYS}
       - MONGODB_URI=${MONGODB_URI}
     depends_on:
       - postgres
