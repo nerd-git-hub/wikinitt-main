@@ -193,6 +193,26 @@ export default function Home() {
                 </Link>
               );
             })}
+
+            {/* Hardcoded Map article */}
+            <Link
+              href="/map"
+              className="article-item"
+            >
+              <img
+                src="https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&w=600&q=80"
+                alt="Explore the Campus Map"
+              />
+              <div className="article-text">
+                <div className="date-line">
+                  <span>EXPLORE</span>
+                </div>
+                <h3>Navigate NITT Campus</h3>
+                <p style={{ WebkitLineClamp: 3 }}>
+                  Discover every corner of the NITT campus with our interactive map. Find hostels, departments, landmarks, eateries, and more — all in one place.
+                </p>
+              </div>
+            </Link>
           </section>
 
         </main>
