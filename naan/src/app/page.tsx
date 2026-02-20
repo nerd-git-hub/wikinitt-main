@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Calendar, MessageCircle, Search, User } from "lucide-react";
+import { Calendar, MessageCircle, Search } from "lucide-react";
 import LandingNavbar from "@/components/LandingNavbar";
 import { SearchModal } from "@/components/SearchModal";
 import { useQuery } from "@tanstack/react-query";
@@ -46,55 +46,33 @@ function getArticleExcerpt(article: Article): string {
 }
 
 export default function Home() {
-  const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
   const [heroSearchOpen, setHeroSearchOpen] = useState(false);
 
-  const { data: categorySeed } = useQuery({
-    queryKey: ["landing-categories"],
-    queryFn: async () => {
-      const endpoint = process.env.NEXT_PUBLIC_GRAPHQL_API_URL || "http://localhost:8080/query";
-      const data = await request<Query>(endpoint, GET_ARTICLES, {
-        limit: 100,
-        offset: 0,
-      });
-      return data.articles as Article[];
-    },
-    staleTime: 10 * 60 * 1000,
-  });
-
   const { data: articlesData, isLoading } = useQuery({
-    queryKey: ["landing-articles", selectedCategory],
+    queryKey: ["landing-featured-articles"],
     queryFn: async () => {
       const endpoint = process.env.NEXT_PUBLIC_GRAPHQL_API_URL || "http://localhost:8080/query";
       const data = await request<Query>(endpoint, GET_ARTICLES, {
-        limit: 12,
+        limit: 4,
         offset: 0,
-        category: selectedCategory,
+        featured: true,
       });
       return data.articles as Article[];
     },
     staleTime: 5 * 60 * 1000,
   });
 
-  const categoryOptions = useMemo(() => {
-    const source = categorySeed || articlesData;
-    if (!source || source.length === 0) return ["All"];
-    const categories = Array.from(
-      new Set(
-        source
-          .map((article) => article.category)
-          .filter((c): c is string => Boolean(c)),
-      ),
-    ).sort((a, b) => a.localeCompare(b));
-    return ["All", ...categories];
-  }, [categorySeed, articlesData]);
-
   const { featuredArticle, listArticles } = useMemo(() => {
     if (!articlesData || articlesData.length === 0) {
       return { featuredArticle: null, listArticles: [] };
     }
-    const subset = articlesData.slice(0, 4);
-    const [first, ...rest] = subset;
+    // Sort by updatedAt descending — most recently updated becomes the big card
+    const sorted = [...articlesData].sort((a, b) => {
+      const aTime = new Date(a.updatedAt || a.createdAt).getTime();
+      const bTime = new Date(b.updatedAt || b.createdAt).getTime();
+      return bTime - aTime;
+    });
+    const [first, ...rest] = sorted;
     return { featuredArticle: first || null, listArticles: rest.slice(0, 3) };
   }, [articlesData]);
 
@@ -142,18 +120,7 @@ export default function Home() {
 
         <main className="w-full max-w-[1200px] mx-auto px-5 pb-[60px] flex flex-col gap-[60px]">
 
-          {/* --- TOP: Updated Categories --- */}
-          <section className="flex justify-center gap-3 flex-wrap">
-            {categoryOptions.map((label) => (
-              <button
-                key={label}
-                className={`cat-btn ${(!selectedCategory && label === "All") || selectedCategory === label ? "active" : ""}`}
-                onClick={() => setSelectedCategory(label === "All" ? undefined : label)}
-              >
-                {label}
-              </button>
-            ))}
-          </section>
+          {/* Featured Articles Section */}
 
           {/* --- BOTTOM: Restored Featured Article (Centered) --- */}
           <section className="flex justify-center mt-5">

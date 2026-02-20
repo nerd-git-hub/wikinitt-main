@@ -26,6 +26,7 @@ export const GET_ARTICLES = gql`
         avatar
       }
       createdAt
+      updatedAt
     }
   }
 `;

@@ -79,7 +79,7 @@ export function UserMenu() {
         <span className="sr-only">Open user menu</span>
         <div className="w-9 h-9 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-700 font-bold border border-indigo-200 overflow-hidden shadow-sm hover:shadow-md transition-all">
           <Image
-            src={me.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(me.username)}`}
+            src={me.avatar || `https://api.dicebear.com/7.x/adventurer-neutral/svg?seed=${encodeURIComponent(me.username)}`}
             alt={me.username}
             className="w-full h-full object-cover"
             width={36}
